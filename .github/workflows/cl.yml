@@ -1,0 +1,51 @@
+name: BugAI CI
+
+on:
+  push:
+    branches:
+      - main
+      - extreme-product-engineering-upgrade
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bugai-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Verify dependency consistency
+        run: pip check
+      - name: Compile Python
+        run: python -m compileall -q app tests
+      - name: Check frontend JavaScript syntax
+        run: |
+          for file in static/js/*.js; do node --check "$file"; done
+      - name: Clean generated Python caches
+        run: |
+          find . -type d -name __pycache__ -prune -exec rm -rf {} +
+          find . -type f \( -name '*.pyc' -o -name '*.pyo' -o -name '*.pyd' \) -delete
+      - name: Check repository hygiene
+        run: |
+          if git ls-files | grep -E '(^|/)(__pycache__/|.*\.py[cod]$)'; then
+            echo "Tracked Python cache artifacts found."
+            exit 1
+          fi
+      - name: Run test suite
+        env:
+          PYTHONPATH: .:scripts
+          CACHE_ENABLED: "false"
+          PYTHONDONTWRITEBYTECODE: "1"
+        run: pytest -q --import-mode=importlib
