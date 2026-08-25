@@ -128,6 +128,28 @@
   function openTreeMenu(name){const f=state.files.get(name);if(!f)return;const action=prompt(`File: ${name}\nType an action: rename, download, delete`, '');if(action==='rename'){ $('renameFileName').value=name;$('renameModal').classList.remove('hidden');$('renameFileName').focus(); } else if(action==='download'){activateFile(name);downloadCurrent()} else if(action==='delete'){closeFile(name);}}
   function initMonaco(){require.config({paths:{vs:'https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs'}});require(['vs/editor/editor.main'],()=>{state.monaco=monaco;state.editor=monaco.editor.create($('monaco'),{value:'',language:'plaintext',theme:'vs-dark',automaticLayout:true,fontSize:14,lineHeight:22,fontFamily:'JetBrains Mono,SFMono-Regular,Consolas,monospace',minimap:{enabled:true},padding:{top:14,bottom:14},scrollBeyondLastLine:false,smoothScrolling:true,wordWrap:'off'});state.editor.onDidChangeModelContent(()=>{if(!state.active)return;sync();scheduleLive()});state.editor.onDidChangeCursorPosition(()=>{const p=state.editor.getPosition();$('cursor').textContent=`Ln ${p.lineNumber}, Col ${p.column}`});});}
 
+  function initWebSplitter(){
+    const stage=$('editorStage'), divider=$('workspaceDivider');
+    if(!stage||!divider)return;
+    let dragging=false;
+    const move=e=>{
+      if(!dragging || !isHtmlWorkspace()) return;
+      const rect=stage.getBoundingClientRect();
+      const min=280, max=rect.width-360;
+      const x=Math.max(min,Math.min(max,e.clientX-rect.left));
+      const pct=(x/rect.width)*100;
+      $('editorStage').style.setProperty('--editor-width',pct+'%');
+      stage.querySelector('.editor-pane').style.flexBasis=pct+'%';
+      stage.querySelector('.editor-pane').style.width=pct+'%';
+      state.editor?.layout();
+    };
+    const up=()=>{if(!dragging)return;dragging=false;divider.classList.remove('dragging');document.body.style.cursor='';};
+    divider.addEventListener('pointerdown',e=>{dragging=true;divider.classList.add('dragging');document.body.style.cursor='col-resize';divider.setPointerCapture?.(e.pointerId);});
+    divider.addEventListener('pointermove',move);
+    divider.addEventListener('pointerup',up);
+    divider.addEventListener('pointercancel',up);
+  }
+
   function init(){
     initMonaco(); renderPanel('output'); renderTree();
     $('fileMenuBtn').onclick=e=>{e.stopPropagation();showFileMenu($('fileMenu').classList.contains('hidden'));};
@@ -145,6 +167,7 @@
     document.querySelectorAll('.inspect-tab').forEach(b=>b.onclick=()=>renderInspect(b.dataset.inspect));
     document.querySelectorAll('[data-viewport]').forEach(b=>b.onclick=()=>{state.viewport=b.dataset.viewport;document.querySelectorAll('[data-viewport]').forEach(x=>x.classList.toggle('active',x===b));const f=$('previewFrame');f.classList.remove('vp-tablet','vp-mobile');if(state.viewport==='tablet')f.classList.add('vp-tablet');if(state.viewport==='mobile')f.classList.add('vp-mobile');});
     $('webRefresh').onclick=()=>{if(isHtmlWorkspace()){updateWeb();event('Refresh','Live web output refreshed','ok')}};
+    initWebSplitter();
     $('previewFrame').addEventListener('load',()=>{if(isHtmlWorkspace()){event('Rendered',`${current().name} · browser output ready`,'ok');setStatus('Live','ready')}});
     window.addEventListener('message',e=>{if(e.data?.source!=='bugfalse-web')return;const type=e.data.type||'log';const text=(e.data.args||[]).join(' ');state.webConsole.unshift({time:new Date().toLocaleTimeString(),type,text});state.webConsole=state.webConsole.slice(0,100);renderInspect('console');event(type.toUpperCase(),text,type==='error'?'bad':'');});
     document.addEventListener('click',e=>{const tab=e.target.closest('[data-file]');if(tab&&!e.target.closest('[data-close-file]'))activateFile(tab.dataset.file);const close=e.target.closest('[data-close-file]');if(close){e.stopPropagation();closeFile(close.dataset.closeFile)}const tree=e.target.closest('[data-tree-file]');if(tree&&!e.target.closest('[data-tree-menu]'))activateFile(tree.dataset.treeFile);const more=e.target.closest('[data-tree-menu]');if(more){e.stopPropagation();openTreeMenu(more.dataset.treeMenu)}if(e.target.id==='applyDiff')applyAI();if(e.target.id==='rejectDiff'){state.analysis={...state.analysis,fixed_code:null};renderPanel('diff')}const closeModal=e.target.closest('[data-close]');if(closeModal)$(closeModal.dataset.close)?.classList.add('hidden')});
