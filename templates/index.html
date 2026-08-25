@@ -53,7 +53,8 @@
 
       <div class="editor-layout">
         <section class="editor-pane">
-          <div class="editor-wrap" id="editorWrap">
+          <div class="web-split hidden" id="webSplit">
+            <div class="web-editor-side"><div class="editor-wrap" id="editorWrap">
             <div class="editor-empty" id="editorEmpty">
               <div class="empty-icon">⌘</div>
               <h2>Build with BugFalse</h2>
@@ -64,8 +65,11 @@
               </div>
             </div>
             <div id="monaco" class="monaco"></div>
-          </div>
-
+          </div></div>
+          <div class="web-preview-side" id="webPreviewSide">
+            <div class="web-preview-header"><span><span class="live-pulse"></span>Live Preview</span><span id="webPreviewStatus">Waiting for changes</span></div>
+            <iframe id="livePreviewFrame" sandbox="allow-scripts"></iframe>
+          </div></div>
           <div class="bottom-panel">
             <div class="panel-tabs">
               <button class="panel-tab active" data-bottom="output">Output <span id="outputDot" class="status-dot"></span></button>
@@ -73,7 +77,7 @@
               <button class="panel-tab" data-bottom="tests">Tests <span class="count" id="testCount">—</span></button>
               <button class="panel-tab" data-bottom="diff">AI Diff</button>
               <button class="panel-tab" data-bottom="analysis">Analysis</button>
-              <button class="panel-tab web-only hidden" data-bottom="preview">Preview</button>
+
             </div>
             <div class="bottom-content" id="bottomContent"></div>
           </div>
@@ -147,6 +151,10 @@ const LANGUAGE_PROFILES={
  plaintext:{icon:'TXT',title:'Text',hint:'Plain text workspace.',run:'Analyze',focus:'Text',tabs:['Output','AI Diff','Analysis'],accent:'plaintext'}
 };
 function languageProfile(){return LANGUAGE_PROFILES[current()?.language]||LANGUAGE_PROFILES.plaintext;}
+function isWebFile(f=current()){return !!f && ['html','css','javascript','typescript'].includes(f.language);}
+function livePreviewSource(){const f=current();if(!f)return '';if(f.language==='html')return f.content;if(f.language==='css')return `<!doctype html><html><head><meta charset="utf-8"><style>${f.content}</style></head><body><div class="bugfalse-preview-demo"><h1>CSS Live Preview</h1><p>Edit your CSS to see changes instantly.</p><button>Example button</button></div></body></html>`;if(['javascript','typescript'].includes(f.language)){const js=f.content.replace(/<\/script/gi,'<\\/script');return `<!doctype html><html><body><pre id="out" style="white-space:pre-wrap;font:13px monospace;padding:18px"></pre><script>const out=document.getElementById('out');const log=(...a)=>out.textContent+=a.map(x=>typeof x==='object'?JSON.stringify(x,null,2):String(x)).join(' ')+'\n';console.log=log;try{${js}}catch(e){log(e.stack||e)}</script></body></html>`;}return '';}
+function updateLiveWebPreview(){const f=current(),web=isWebFile(f);$('webSplit').classList.toggle('hidden',!web);if(!web)return;const frame=$('livePreviewFrame');if(frame)frame.srcdoc=livePreviewSource();const status=$('webPreviewStatus');if(status)status.textContent='Updated '+new Date().toLocaleTimeString();}
+function recordWebUpdate(type='Updated'){const f=current();if(!isWebFile(f))return;state.liveEvents.unshift({time:new Date().toLocaleTimeString(),type,message:`${f.name} changed · live preview refreshed`});state.liveEvents=state.liveEvents.slice(0,30);renderBottom('output');updateLiveWebPreview();}
 function updateLanguageWorkspace(){const f=current(),p=languageProfile(),d=state.detected||{};$('languageIcon').textContent=p.icon;$('languageTitle').textContent=p.title;$('languageFramework').textContent=d.framework?` · ${d.framework}`:'';$('languageHint').textContent=p.hint;$('languageRuntime').textContent=d.runtime_available===false?'Runtime unavailable':(p.focus||'Editor ready');$('runBtn').innerHTML=`<span class="play">▶</span> ${esc(p.run)}`;const action=$('contextAction');const contextual={json:'Validate',sql:'Analyze query',yaml:'Validate'};const label=contextual[f?.language];if(f&&label){action.textContent=label;action.classList.remove('hidden');}else{action.classList.add('hidden');action.textContent='';}document.querySelectorAll('.web-only').forEach(x=>x.classList.add('hidden'));document.querySelectorAll('.panel-tab').forEach(x=>{if(x.classList.contains('web-only'))return;const name=x.dataset.bottom;const labels={output:'Output',problems:'Problems',tests:'Tests',diff:'AI Diff',analysis:'Analysis'};if(labels[name])x.childNodes[0].textContent=labels[name]+' ';});document.getElementById('languageWorkspace').dataset.language=p.accent;}
 function previewSource(){const f=current();if(!f)return '';if(f.language==='html')return f.content;if(f.language==='css')return `<!doctype html><html><head><meta charset="utf-8"><style>${f.content}</style></head><body><main style="font-family:system-ui;padding:24px"><h2>CSS Preview</h2><p>Edit the stylesheet to see changes here.</p><button>Example button</button></main></body></html>`;if(['javascript','typescript'].includes(f.language)){const js=f.content;return '<!doctype html><html><body><pre id="out" style="white-space:pre-wrap;font:13px monospace;padding:18px"></pre><scr'+'ipt>const out=document.getElementById(\'out\');const log=(...a)=>out.textContent+=a.map(x=>typeof x===\'object\'?JSON.stringify(x,null,2):String(x)).join(\' \')+\'\n\';console.log=log;try{'+js.replace(/<\/script/gi,'<\\/script')+'}catch(e){log(e.stack||e)}<'+'/scr'+'ipt></body></html>';}return ''; }
 function showPreview(){const f=current();if(!f)return;const frame=$('previewFrame');frame.srcdoc=previewSource();$('previewSubtitle').textContent=`${f.name} · ${languageProfile().title}`;$('previewModal').classList.remove('hidden');}
@@ -157,10 +165,10 @@ function setStatus(text,kind='ready'){$('statusText').textContent=text;$('status
 function renderTabs(){$('fileTabs').innerHTML=[...state.files.values()].map(f=>`<button class="file-tab ${f.name===state.active?'active':''}" data-file="${esc(f.name)}"><span class="file-icon">${esc(f.language)}</span>${esc(f.name)}${f.dirty?'<span class="dirty">●</span>':''}<span class="tab-x" data-close-file="${esc(f.name)}">×</span></button>`).join('');}
 function renderContext(){const f=current();$('aiContext').textContent=f?`${f.name} · ${f.language}${state.detected?.framework?' · '+state.detected.framework:''}`:'No file selected';$('fileStatus').textContent=f?f.name:'No file';}
 async function detectProject(){const f=current();if(!f)return;try{const files={};for(const [n,v] of state.files)files[n]=v.content.slice(0,100000);const r=await fetch('/runtime/detect',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({filename:f.name,files})});state.detected=await r.json();const d=state.detected;let label=d.framework?`${d.framework} · ${d.language_label}`:d.language_label;if(d.language==='plaintext')label='Unknown language';$('runtimePill').textContent=label;renderContext();updateLanguageWorkspace();}catch{state.detected=null;$('runtimePill').textContent=f.language;updateLanguageWorkspace();}}
-function openFile(name,content){const lang=languageFor(name);state.files.set(name,{name,content,original:content,language:lang,dirty:false});state.active=name;state.liveEvents=[{time:new Date().toLocaleTimeString(),type:'Opened',message:`${name} loaded · live preview ready`}];$('editorEmpty').classList.add('hidden');renderTabs();renderContext();if(state.editor){state.editor.setValue(content);state.monaco.editor.setModelLanguage(state.editor.getModel(),lang);state.editor.focus();}updateCursor();detectProject();updateLanguageWorkspace();scheduleLive();}
+function openFile(name,content){const lang=languageFor(name);const existing=state.files.get(name);state.files.set(name,{name,content,original:existing?.original??content,language:lang,dirty:existing?content!==existing.original:false});state.active=name;state.liveEvents=[{time:new Date().toLocaleTimeString(),type:'Opened',message:`${name} loaded · live preview ready`}];state.lastOutput=null;$('editorEmpty').classList.add('hidden');renderTabs();renderContext();if(state.editor){state.editor.setValue(content);state.monaco.editor.setModelLanguage(state.editor.getModel(),lang);state.editor.focus();}updateCursor();detectProject();updateLanguageWorkspace();updateLiveWebPreview();renderBottom('output');scheduleLive();}
 function openMany(files){let pending=files.length;for(const file of files){if(file.size>2*1024*1024)continue;const reader=new FileReader();reader.onload=()=>{openFile(file.webkitRelativePath||file.name,String(reader.result));if(--pending===0)detectProject();};reader.readAsText(file);}}
 function updateCursor(){if(!state.editor)return;const p=state.editor.getPosition();$('cursorStatus').textContent=`Ln ${p.lineNumber}, Col ${p.column}`;}
-function syncEditor(){const f=current();if(!f||!state.editor)return;const v=state.editor.getValue();if(v!==f.content){f.content=v;f.dirty=v!==f.original;renderTabs();}}
+function syncEditor(){const f=current();if(!f||!state.editor)return;const v=state.editor.getValue();if(v!==f.content){f.content=v;f.dirty=v!==f.original;renderTabs();if(isWebFile(f))updateLiveWebPreview();}}
 function addHistory(label,detail){state.history.unshift({time:new Date().toLocaleTimeString(),label,detail});if(state.history.length>30)state.history.pop();}
 function setBottom(tab){document.querySelectorAll('.panel-tab').forEach(x=>x.classList.toggle('active',x.dataset.bottom===tab));renderBottom(tab);}
 function renderBottom(tab='output'){const out=state.lastOutput||{},r=state.aiResult||{},f=current();let html='';
@@ -168,7 +176,7 @@ function renderBottom(tab='output'){const out=state.lastOutput||{},r=state.aiRes
    const web=f&&['html','css'].includes(f.language);
    if(web){
      const events=state.liveEvents.slice(-8).map(e=>`<div class="live-event"><span>${esc(e.time)}</span><b>${esc(e.type)}</b><em>${esc(e.message)}</em></div>`).join('')||'<div class="live-empty">Edit the file to start live updates.</div>';
-     html=`<div class="web-live-output"><div class="output-head"><span><i class="live-pulse"></i> Live preview</span><span>${esc(f.name)}</span></div><div class="live-preview-wrap"><iframe class="live-preview-frame" id="livePreviewFrame" sandbox="allow-scripts"></iframe></div><div class="live-log-head"><span>Live updates</span><span>${state.liveEvents.length} events</span></div><div class="live-events">${events}</div></div>`;
+     html=`<div class="web-live-output"><div class="output-head"><span><i class="live-pulse"></i> Live Output</span><span>${state.liveEvents.length} updates</span></div><div class="live-log-head"><span>Live updates</span><span>${esc(f.name)}</span></div><div class="live-events">${events}</div></div>`;
    } else {
      html=`<div class="output-head"><span>${out.ok?'✓ Execution successful':out.stderr?'✕ Execution failed':'Ready'}</span><span>${out.duration_ms?out.duration_ms+' ms':''}</span></div><pre class="terminal">${esc(out.stdout||out.stderr||'Run the current file to see live output.')}</pre>`;
    }
@@ -179,23 +187,11 @@ function renderBottom(tab='output'){const out=state.lastOutput||{},r=state.aiRes
  if(tab==='diff'){if(!r.fixed_code)html='<div class="empty-panel"><span>↔</span><b>No proposed changes</b><p>Ask AI to fix or improve the current file.</p></div>';else html=`<div class="diff-toolbar"><span>AI proposal</span><button class="toolbar-btn small" id="rejectDiff">Reject</button><button class="primary-btn small" id="applyDiff">Apply</button></div><div class="diff-view">${diffHtml(current()?.content||'',r.fixed_code)}</div>`;}
  if(tab==='preview')html=`<div class="preview-inline"><div class="output-head"><span>Browser preview</span></div><iframe class="preview-frame-inline" id="inlinePreviewFrame" sandbox="allow-scripts"></iframe></div>`;
  $('bottomContent').innerHTML=html;
- if(tab==='output' && f && ['html','css'].includes(f.language)){const fr=$('livePreviewFrame');if(fr)fr.srcdoc=previewSource();}
- if(tab==='preview'){const fr=$('inlinePreviewFrame');if(fr)fr.srcdoc=previewSource();} $('problemCount').textContent=(r.issues||[]).length||0;if(out.ok)$('outputDot').className='status-dot good';else if(out.stderr)$('outputDot').className='status-dot bad';else $('outputDot').className='status-dot';}
+$('problemCount').textContent=(r.issues||[]).length||0;if(out.ok)$('outputDot').className='status-dot good';else if(out.stderr)$('outputDot').className='status-dot bad';else $('outputDot').className='status-dot';}
 function diffHtml(before,after){const a=before.split('\n'),b=after.split('\n'),max=Math.max(a.length,b.length);let out='';for(let i=0;i<max;i++){if(a[i]===b[i])out+=`<div class="diff-row"><span>${i+1}</span><code>  ${esc(a[i]??'')}</code></div>`;else{if(a[i]!==undefined)out+=`<div class="diff-row removed"><span>${i+1}</span><code>- ${esc(a[i])}</code></div>`;if(b[i]!==undefined)out+=`<div class="diff-row added"><span>${i+1}</span><code>+ ${esc(b[i])}</code></div>`;}}return out;}
 function parseTraceLine(s){const m=String(s).match(/(?:line|:)(?:\s*)(\d+)/);return m?Number(m[1]):null;}
 async function execute(){syncEditor();const f=current();if(!f){toast('Open a code file first');return;}state.running=true;setStatus('Running…','running');$('runBtn').disabled=true;$('stopBtn').disabled=false;state.lastOutput=null;renderBottom('output');try{const c=new AbortController();state.abort=c;const res=await fetch('/execute/',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code:f.content,filename:f.name}),signal:c.signal});const data=await res.json();if(!res.ok)throw new Error(data.detail||'Execution failed');state.lastOutput=data;addHistory(data.ok?'Run passed':'Run failed',f.name);setStatus(data.ok?'Verified':data.runtime_available===false?'Runtime unavailable':'Runtime error',data.ok?'ready':'error');renderBottom('output');if(data.stderr){const line=parseTraceLine(data.stderr);if(line&&state.editor){state.editor.revealLineInCenter(line);state.editor.setPosition({lineNumber:line,column:1});}}}catch(e){if(e.name!=='AbortError'){state.lastOutput={ok:false,stderr:e.message};setStatus('Execution failed','error');renderBottom('output');}}finally{state.running=false;$('runBtn').disabled=false;$('stopBtn').disabled=true;}}
-function scheduleLive(){clearTimeout(state.timer);const f=current();if(!f)return;
- if(['html','css'].includes(f.language)){
-   if(!$('liveToggle').checked)return;
-   state.timer=setTimeout(()=>{
-     const now=new Date().toLocaleTimeString();
-     state.liveEvents.push({time:now,type:'Updated',message:`${f.name} changed · live preview refreshed`});
-     if(state.liveEvents.length>30)state.liveEvents.shift();
-     renderBottom('output');
-   },250);
-   return;
- }
- if(!$('liveToggle').checked)return;if(!['python','javascript','php','ruby','go','rust','c','cpp','java','typescript','swift'].includes(f.language))return;state.timer=setTimeout(execute,state.debounce);}
+function scheduleLive(){clearTimeout(state.timer);const f=current();if(!f)return;if(isWebFile(f)){if(!$('liveToggle').checked)return;state.timer=setTimeout(()=>{syncEditor();recordWebUpdate('Updated');},250);return;}if(!$('liveToggle').checked)return;if(!['python','javascript','php','ruby','go','rust','c','cpp','java','typescript','swift'].includes(f.language))return;state.timer=setTimeout(execute,state.debounce);}
 function formatAiText(text=''){let html=esc(text);html=html.replace(/```([\s\S]*?)```/g,'<pre class="ai-code">$1</pre>').replace(/`([^`]+)`/g,'<code>$1</code>').replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>').replace(/\n- /g,'<br>• ').replace(/\n/g,'<br>');return html;}
 function addAiMessage(type,text){const chat=$('aiChat');const welcome=chat.querySelector('.ai-welcome');if(welcome)welcome.remove();const d=document.createElement('div');d.className='chat-msg '+type;d.innerHTML=type==='progress'?`<div class="ai-progress"><span class="pulse"></span><span>${esc(text)}</span></div>`:`<div class="msg-label">${type==='user'?'You':'BugFalse AI'}</div><div class="msg-body">${type==='assistant'?formatAiText(text):esc(text)}</div>`;chat.appendChild(d);chat.scrollTop=chat.scrollHeight;return d;}
 async function ai(mode='analyze',prompt=''){syncEditor();const f=current();if(!f){toast('Open a code file first');return;}const request=prompt||({analyze:'Analyze this code',fix:'Find and fix the bugs',improve:'Improve this code while preserving behavior'}[mode]||'Analyze this code');addAiMessage('user',request);const progress=addAiMessage('progress','Analyzing the current code…');setStatus('AI working…','running');try{const res=await fetch('/debug/',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code:f.content,mode})});const data=await res.json();if(!res.ok)throw new Error(data.detail||'AI request failed');progress.remove();state.aiResult=data;addHistory('AI '+mode,f.name);addAiMessage('assistant',data.analysis||data.explanation||data.summary?.message||'Analysis complete.');if(data.fixed_code&&['fix','improve','refactor','optimize','security'].includes(mode)){setBottom('diff');setStatus('AI proposal ready','ready');}else{setBottom('analysis');setStatus('Analysis complete','ready');}}catch(e){progress.remove();addAiMessage('assistant','I could not complete that request. '+e.message);setStatus('AI failed','error');}}
@@ -213,7 +209,7 @@ function init(){
  loadMonaco();renderBottom('output');updateLanguageWorkspace();
  $('fileInput').multiple=true;
  $('uploadBtn').onclick=()=>$('fileInput').click();$('emptyUpload').onclick=()=>$('fileInput').click();$('fileInput').onchange=e=>{if(e.target.files.length)openMany([...e.target.files]);e.target.value='';};$('emptySample').onclick=openSample;
- $('runBtn').onclick=()=>{const f=current();if(['html','css'].includes(f?.language)){renderBottom('output');}else if(f?.language==='json')validateJson();else if(f?.language==='sql')ai('analyze','Review and optimize this SQL query for correctness, safety, and performance.');else if(f?.language==='markdown')showMarkdownPreview();else if(f?.language==='yaml')validateYaml();else execute();};$('contextAction').onclick=()=>{const f=current();if(['html','css','javascript','typescript'].includes(f?.language))showPreview();else if(f?.language==='json')validateJson();else if(f?.language==='sql')ai('analyze','Review and optimize this SQL query for correctness, safety, and performance.');else if(f?.language==='markdown')showMarkdownPreview();else if(f?.language==='yaml')validateYaml();};$('stopBtn').onclick=()=>state.abort?.abort();$('downloadBtn').onclick=downloadFile;
+ $('runBtn').onclick=()=>{const f=current();if(['html','css','javascript','typescript'].includes(f?.language)){updateLiveWebPreview();renderBottom('output');}else if(f?.language==='json')validateJson();else if(f?.language==='sql')ai('analyze','Review and optimize this SQL query for correctness, safety, and performance.');else if(f?.language==='markdown')showMarkdownPreview();else if(f?.language==='yaml')validateYaml();else execute();};$('contextAction').onclick=()=>{const f=current();if(['html','css','javascript','typescript'].includes(f?.language)){updateLiveWebPreview();renderBottom('output');}else if(f?.language==='json')validateJson();else if(f?.language==='sql')ai('analyze','Review and optimize this SQL query for correctness, safety, and performance.');else if(f?.language==='markdown')showMarkdownPreview();else if(f?.language==='yaml')validateYaml();};$('stopBtn').onclick=()=>state.abort?.abort();$('downloadBtn').onclick=downloadFile;
  document.querySelectorAll('.ai-modes [data-ai]').forEach(b=>b.onclick=()=>ai(b.dataset.ai));
  document.querySelectorAll('.panel-tab').forEach(b=>b.onclick=()=>setBottom(b.dataset.bottom));
  document.querySelectorAll('[data-suggestion]').forEach(b=>b.onclick=()=>{const q=b.dataset.suggestion;$('aiInput').value='';ai('analyze',q);});
