@@ -47,3 +47,38 @@
   .ai-panel{display:none}
   .bottom-panel{height:145px}
 }
+
+/* Simple controls + professional AI workspace */
+.stop-quiet:disabled{opacity:.35;cursor:default}
+.ai-panel{transition:width .2s ease,opacity .2s ease,transform .2s ease}
+.ai-panel.collapsed{display:none}
+.ai-close{width:28px;height:28px;border:1px solid transparent;background:transparent;color:#7e8798;border-radius:6px;font-size:20px;line-height:1;cursor:pointer}
+.ai-close:hover{background:#171c25;border-color:#2a3040;color:#e6eaf2}
+.ai-reopen{position:absolute;right:12px;top:64px;z-index:20;height:32px;padding:0 11px;border:1px solid #303747;background:#111722;color:#d8d3ff;border-radius:7px;font-size:10px;font-weight:700;box-shadow:0 8px 25px rgba(0,0,0,.22);cursor:pointer}
+.ai-reopen:hover{background:#181e2b;border-color:#5148a2}
+.ai-modes{border-bottom:1px solid var(--line);padding-bottom:10px}
+.ai-modes button{background:transparent;border-color:transparent;padding:6px 9px;color:#7f899a}
+.ai-modes button.active{background:#19172b;border-color:#37315f;color:#d9d4ff}
+.ai-welcome{padding:30px 8px 18px}
+.welcome-icon{width:34px;height:34px;border-radius:9px;display:grid;place-items:center;background:#17152a;border:1px solid #302b50;color:#a69bff;font-size:16px}
+.ai-welcome h3{font-size:14px;margin:13px 0 6px;color:#eef1f6}
+.ai-welcome p{max-width:245px;color:#7d8798;line-height:1.65}
+.suggestions button{padding:9px 10px;background:#10141b;color:#aab2c0;border-color:#252c38;transition:.15s}
+.suggestions button:hover{background:#151a23;color:#e2e6ed;border-color:#383f4f}
+.chat-msg{padding:11px 12px;border-radius:9px;margin-bottom:9px}
+.chat-msg.user{background:#171b25;border-color:#2a3040}
+.chat-msg.assistant{background:#10151c;border-color:#242b36}
+.msg-label{font-size:9px;letter-spacing:.04em;text-transform:uppercase;color:#857bdf;margin-bottom:7px}
+.msg-body{color:#c8cfda;line-height:1.7}
+.msg-body strong{color:#f0f2f6}
+.msg-body code{font:10px/1.5 "JetBrains Mono",Consolas,monospace;background:#191e27;border:1px solid #2a303a;padding:1px 4px;border-radius:4px;color:#d7d0ff}
+.ai-code{margin:9px 0 2px;padding:10px;overflow:auto;background:#0a0d12;border:1px solid #242a35;border-radius:6px;color:#cbd3df;font:10px/1.6 "JetBrains Mono",Consolas,monospace;white-space:pre-wrap}
+.ai-progress{display:flex;align-items:center;gap:7px;color:#9388e8;font-size:10px;padding:2px 0}
+.ai-composer{background:#0c1016}
+.ai-composer textarea{min-height:48px;font-size:11px;line-height:1.5}
+.send-btn{display:grid;place-items:center;cursor:pointer;transition:.15s}
+.send-btn:hover{filter:brightness(1.12);transform:translateY(-1px)}
+.toolbar-btn,.primary-btn{box-shadow:none}
+.toolbar-btn:hover{background:#171c25}
+.primary-btn{background:#7568e8}
+@media(max-width:780px){.ai-reopen{top:58px}.ai-panel.collapsed{display:none}}

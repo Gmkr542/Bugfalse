@@ -12,10 +12,9 @@
   <header class="topbar">
     <div class="brand"><span class="brand-mark">B</span><span>BugFalse</span><span class="brand-badge">AI ENGINEERING</span></div>
     <div class="top-actions">
-      <button class="ghost-btn" id="projectNameBtn">Workspace <span>⌄</span></button>
-      <button class="icon-btn" id="commandBtn" title="Command palette">⌘K</button>
+      <button class="ghost-btn" id="projectNameBtn">Workspace</button>
       <button class="icon-btn" id="themeBtn" title="Toggle theme">☼</button>
-      <button class="avatar">U</button>
+      <button class="icon-btn" id="settingsBtn" title="Settings">⚙</button>
     </div>
   </header>
 
@@ -24,39 +23,24 @@
       <div class="side-section">
         <div class="side-label">WORKSPACE</div>
         <button class="side-item active" data-panel="explorer"><span>▦</span> Explorer</button>
-        <button class="side-item" data-panel="search"><span>⌕</span> Search</button>
         <button class="side-item" data-panel="history"><span>◷</span> History</button>
       </div>
-      <div class="side-section">
-        <div class="side-label">BUGFALSE AI</div>
-        <button class="side-item ai-item" data-ai="analyze"><span>✦</span> Analyze</button>
-        <button class="side-item ai-item" data-ai="fix"><span>⚡</span> Fix bugs</button>
-        <button class="side-item ai-item" data-ai="improve"><span>↗</span> Improve</button>
-        <button class="side-item ai-item" data-ai="refactor"><span>◇</span> Refactor</button>
-        <button class="side-item ai-item" data-ai="optimize"><span>◈</span> Optimize</button>
-        <button class="side-item ai-item" data-ai="security"><span>⌁</span> Security</button>
-        <button class="side-item ai-item" data-ai="tests"><span>✓</span> Generate tests</button>
-      </div>
       <div class="side-spacer"></div>
-      <div class="side-section compact">
-        <button class="side-item" id="settingsBtn"><span>⚙</span> Settings</button>
-      </div>
     </aside>
 
     <main class="main-area">
       <div class="toolbar">
         <div class="toolbar-left">
-          <button class="primary-btn" id="uploadBtn">＋ Upload</button>
+          <button class="primary-btn" id="uploadBtn">Open file</button>
           <input type="file" id="fileInput" hidden />
           <input type="file" id="projectInput" hidden webkitdirectory directory multiple />
-          <button class="toolbar-btn" id="projectUploadBtn">Project</button>
           <button class="toolbar-btn" id="runBtn"><span class="play">▶</span> Run</button>
-          <button class="toolbar-btn" id="stopBtn" disabled>■ Stop</button>
+          <button class="toolbar-btn stop-quiet" id="stopBtn" disabled>Stop</button>
         </div>
         <div class="toolbar-right">
           <label class="live-toggle"><input type="checkbox" id="liveToggle" checked /><span class="toggle"></span> Live</label>
           <span class="runtime-pill" id="runtimePill">Python 3</span>
-          <button class="toolbar-btn" id="downloadBtn">↓ Download</button>
+          <button class="toolbar-btn" id="downloadBtn">Download</button>
         </div>
       </div>
 
@@ -70,8 +54,8 @@
               <h2>Build with BugFalse</h2>
               <p>Drop a code file here, start typing, or ask AI to improve your code.</p>
               <div class="empty-actions">
-                <button class="primary-btn" id="emptyUpload">Upload file</button>
-                <button class="toolbar-btn" id="emptySample">Open sample</button>
+                <button class="primary-btn" id="emptyUpload">Open file</button>
+                <button class="toolbar-btn" id="emptySample">Try sample</button>
               </div>
             </div>
             <div id="monaco" class="monaco"></div>
@@ -91,12 +75,12 @@
 
         <aside class="ai-panel">
           <div class="ai-header">
-            <div><div class="ai-title"><span class="spark">✦</span> BugFalse AI</div><div class="ai-subtitle">Code-aware engineering assistant</div></div>
-            <button class="icon-btn" id="clearAiBtn">×</button>
+            <div><div class="ai-title"><span class="spark">✦</span> BugFalse AI</div><div class="ai-subtitle">Your code-aware engineering assistant</div></div>
+            <button class="ai-close" id="closeAiBtn" aria-label="Close AI panel">×</button>
           </div>
           <div class="ai-context" id="aiContext">No file selected</div>
           <div class="ai-modes">
-            <button data-ai="analyze">Analyze</button><button data-ai="fix">Fix</button><button data-ai="improve">Improve</button><button data-ai="security">Secure</button>
+            <button class="active" data-ai="analyze">Analyze</button><button data-ai="fix">Fix</button><button data-ai="improve">Improve</button>
           </div>
           <div class="ai-chat" id="aiChat">
             <div class="ai-welcome">
@@ -104,9 +88,8 @@
               <h3>Your AI engineering copilot</h3>
               <p>Ask me to find bugs, improve code, explain failures, or generate tests.</p>
               <div class="suggestions">
-                <button data-suggestion="Find the most important bug in this file">Find the most important bug</button>
-                <button data-suggestion="Improve this code without changing its behavior">Improve without changing behavior</button>
-                <button data-suggestion="Explain the current error and fix it">Explain and fix the error</button>
+                <button data-suggestion="Find the most important bug and explain how to fix it">Find the most important bug</button>
+                <button data-suggestion="Improve this code while preserving its behavior">Improve this code</button>
               </div>
             </div>
           </div>
@@ -122,11 +105,11 @@
   <div class="statusbar"><div><span class="status-ready" id="statusLight"></span><span id="statusText">Ready</span></div><div><span id="cursorStatus">Ln 1, Col 1</span><span>UTF-8</span><span id="fileStatus">No file</span></div></div>
 </div>
 
-<div class="modal hidden" id="commandModal"><div class="modal-card command-card"><input id="commandSearch" autofocus placeholder="Search commands…" /><div id="commandList"></div></div></div>
 <div class="modal hidden" id="settingsModal"><div class="modal-card"><div class="modal-title">Workspace settings <button class="icon-btn" data-close="settingsModal">×</button></div><div class="setting-row"><div><b>Live execution</b><p>Run Python automatically after editing.</p></div><label class="live-toggle"><input type="checkbox" id="settingsLive" checked /><span class="toggle"></span></label></div><div class="setting-row"><div><b>Debounce</b><p>Delay before live execution starts.</p></div><select id="debounceSelect"><option value="600">600 ms</option><option value="900" selected>900 ms</option><option value="1200">1200 ms</option></select></div><div class="setting-row"><div><b>Editor minimap</b><p>Show the code minimap.</p></div><label class="live-toggle"><input type="checkbox" id="minimapToggle" checked /><span class="toggle"></span></label></div></div></div>
 
 <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs/loader.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<button class="ai-reopen hidden" id="reopenAiBtn">✦ AI</button>
 <script>
 const SAMPLE = `def calculate_total(items):\n    total = 0\n    for item in items:\n        if item is None:\n            continue\n        total += item.price\n    return total\n\nitems = []\nprint(calculate_total(items))\n`;
 const state = { files: new Map(), active: null, editor: null, monaco: null, aiResult: null, lastOutput: null, history: [], running: false, timer: null, debounce: 900, theme: 'dark' };
@@ -157,7 +140,29 @@ async function execute(){syncEditor();const f=current();if(!f){toast('Upload or 
 function parseTraceLine(s){const m=String(s).match(/line (\d+)/);return m?Number(m[1]):null;}
 function scheduleLive(){clearTimeout(state.timer);if(!$('liveToggle').checked)return;state.timer=setTimeout(()=>execute(),state.debounce);}
 async function ai(mode='analyze',prompt=''){syncEditor();const f=current();if(!f){toast('Upload or open a file first');return;} addAiMessage('user',prompt||({analyze:'Analyze this code',fix:'Find and fix the bugs',improve:'Improve this code without changing intended behavior',refactor:'Refactor this code safely',optimize:'Optimize this code',security:'Perform a security review',tests:'Generate tests for this code'}[mode]||'Analyze this code')); addAiMessage('progress',`● ${mode==='analyze'?'Analyzing':mode==='security'?'Scanning security':'Generating '+mode+' proposal'}…`);setStatus('AI working…','running');try{const res=await fetch('/debug/',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code:f.content,mode})});const data=await res.json();if(!res.ok)throw new Error(data.detail||'AI request failed');state.aiResult=data;addHistory('AI '+mode,f.name);const text=data.analysis||data.explanation||data.summary?.message||'Analysis complete.';addAiMessage('assistant',text);if(data.fixed_code&&['fix','improve','refactor','optimize','security'].includes(mode)){setBottom('diff');setStatus('AI proposal ready','ready');}else{setBottom('analysis');setStatus('Analysis complete','ready');}renderBottom(document.querySelector('.panel-tab.active')?.dataset.bottom||'analysis');}catch(e){addAiMessage('assistant','⚠ '+e.message);setStatus('AI failed','error');}}
-function addAiMessage(type,text){const chat=$('aiChat');const welcome=chat.querySelector('.ai-welcome');if(welcome)welcome.remove();const d=document.createElement('div');d.className='chat-msg '+type;d.innerHTML=type==='progress'?`<span class="pulse"></span>${esc(text)}`:`<div class="msg-label">${type==='user'?'You':'BugFalse AI'}</div><div>${esc(text)}</div>`;chat.appendChild(d);chat.scrollTop=chat.scrollHeight;}
+function formatAiText(text=''){
+  let html=esc(text);
+  html=html.replace(/```([\s\S]*?)```/g, '<pre class="ai-code">$1</pre>');
+  html=html.replace(/`([^`]+)`/g, '<code>$1</code>');
+  html=html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+  html=html.replace(/^### (.+)$/gm, '<h4>$1</h4>');
+  html=html.replace(/^## (.+)$/gm, '<h3>$1</h3>');
+  html=html.replace(/\n- /g, '<br>• ');
+  html=html.replace(/\n/g, '<br>');
+  return html;
+}
+function addAiMessage(type,text){
+  const chat=$('aiChat');
+  const welcome=chat.querySelector('.ai-welcome');
+  if(welcome)welcome.remove();
+  const d=document.createElement('div');
+  d.className='chat-msg '+type;
+  if(type==='progress') d.innerHTML=`<div class="ai-progress"><span class="pulse"></span><span>${esc(text)}</span></div>`;
+  else d.innerHTML=`<div class="msg-label">${type==='user'?'You':'BugFalse AI'}</div><div class="msg-body">${type==='assistant'?formatAiText(text):esc(text)}</div>`;
+  chat.appendChild(d);
+  chat.scrollTop=chat.scrollHeight;
+  return d;
+}
 function applyAI(){const f=current(),r=state.aiResult;if(!f||!r?.fixed_code)return;state.history.unshift({time:new Date().toLocaleTimeString(),label:'AI changes applied',detail:f.name});f.content=r.fixed_code;f.dirty=true;state.editor.setValue(f.content);renderTabs();renderBottom('diff');scheduleLive();addAiMessage('assistant','✓ Changes applied. I will validate the updated file now.');}
 function rejectAI(){state.aiResult=null;renderBottom('diff');setStatus('AI proposal rejected','ready');}
 function downloadFile(){const f=current();if(!f){toast('Nothing to download');return;}const blob=new Blob([f.content],{type:'text/plain;charset=utf-8'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=f.name;a.click();URL.revokeObjectURL(a.href);addHistory('Downloaded file',f.name);}
@@ -167,26 +172,25 @@ function loadMonaco(){require.config({paths:{vs:'https://cdn.jsdelivr.net/npm/mo
 function openSample(){openFile('main.py',SAMPLE);}
 function readFile(file){const reader=new FileReader();reader.onload=()=>openFile(file.name,String(reader.result));reader.readAsText(file);}
 function readProject(files){for(const f of files){if(f.size<2*1024*1024 && !f.name.includes('node_modules')){const reader=new FileReader();reader.onload=()=>openFile(f.webkitRelativePath||f.name,String(reader.result));reader.readAsText(f);}}}
-const commands=[['Analyze code','analyze'],['Fix current errors','fix'],['Improve code','improve'],['Refactor','refactor'],['Optimize','optimize'],['Security scan','security'],['Generate tests','tests'],['Run code','run'],['Download current file','download']];
-function renderCommands(filter=''){const list=$('commandList');list.innerHTML=commands.filter(x=>x[0].toLowerCase().includes(filter.toLowerCase())).map(x=>`<button class="command-item" data-command="${x[1]}"><span>✦</span>${x[0]}<kbd>↵</kbd></button>`).join('');}
+const commands=[['Analyze code','analyze'],['Fix current errors','fix'],['Improve code','improve'],['Run code','run'],['Download current file','download']];
+function renderCommands(filter=''){return;}
 function init(){
- loadMonaco(); renderCommands(); renderBottom('output');
- $('uploadBtn').onclick=()=>$('fileInput').click();$('emptyUpload').onclick=()=>$('fileInput').click();$('fileInput').onchange=e=>{if(e.target.files[0])readFile(e.target.files[0]);e.target.value='';};$('projectUploadBtn').onclick=()=>$('projectInput').click();$('projectInput').onchange=e=>{readProject(e.target.files);e.target.value='';};$('emptySample').onclick=openSample;
+ loadMonaco(); renderBottom('output');
+ $('uploadBtn').onclick=()=>$('fileInput').click();$('emptyUpload').onclick=()=>$('fileInput').click();$('fileInput').onchange=e=>{if(e.target.files[0])readFile(e.target.files[0]);e.target.value='';};$('emptySample').onclick=openSample;
  $('runBtn').onclick=execute;$('stopBtn').onclick=()=>{if(state.abort)state.abort.abort();};$('downloadBtn').onclick=downloadFile;
- document.querySelectorAll('[data-ai]').forEach(b=>b.onclick=()=>ai(b.dataset.ai));
+ document.querySelectorAll('[data-ai]').forEach(b=>b.onclick=()=>{document.querySelectorAll('.ai-modes [data-ai]').forEach(x=>x.classList.toggle('active',x===b));ai(b.dataset.ai);});
  document.querySelectorAll('.panel-tab').forEach(b=>b.onclick=()=>setBottom(b.dataset.bottom));
  document.querySelectorAll('[data-suggestion]').forEach(b=>b.onclick=()=>{$('aiInput').value=b.dataset.suggestion;ai('analyze',b.dataset.suggestion);});
  $('sendAi').onclick=()=>{const q=$('aiInput').value.trim();if(q){$('aiInput').value='';let mode='analyze';if(/improv/i.test(q))mode='improve';else if(/fix|bug|error/i.test(q))mode='fix';else if(/security|vulnerab/i.test(q))mode='security';ai(mode,q);}};
  $('aiInput').onkeydown=e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();$('sendAi').click();}};
- $('clearAiBtn').onclick=()=>$('aiChat').innerHTML='<div class="ai-welcome"><div class="welcome-icon">✦</div><h3>Your AI engineering copilot</h3><p>Ask me to find bugs, improve code, explain failures, or generate tests.</p></div>';
+ $('closeAiBtn').onclick=()=>{document.querySelector('.ai-panel').classList.add('collapsed');$('reopenAiBtn').classList.remove('hidden');}; $('reopenAiBtn').onclick=()=>{document.querySelector('.ai-panel').classList.remove('collapsed');$('reopenAiBtn').classList.add('hidden');};
  $('themeBtn').onclick=()=>{state.theme=state.theme==='dark'?'light':'dark';document.body.classList.toggle('light',state.theme==='light');if(state.editor)monaco.editor.setTheme(state.theme==='light'?'vs':'vs-dark');};
  $('settingsBtn').onclick=()=>$('settingsModal').classList.remove('hidden');$('settingsLive').onchange=e=>$('liveToggle').checked=e.target.checked;$('liveToggle').onchange=e=>$('settingsLive').checked=e.target.checked;$('debounceSelect').onchange=e=>state.debounce=Number(e.target.value);$('minimapToggle').onchange=e=>state.editor?.updateOptions({minimap:{enabled:e.target.checked}});
- $('commandBtn').onclick=()=>{$('commandModal').classList.remove('hidden');$('commandSearch').focus();};$('commandSearch').oninput=e=>renderCommands(e.target.value);
- document.addEventListener('click',e=>{if(e.target.matches('[data-close]'))$(e.target.dataset.close).classList.add('hidden');if(e.target.id==='commandModal')e.target.classList.add('hidden');if(e.target.id==='settingsModal')e.target.classList.add('hidden');if(e.target.closest('[data-command]')){const c=e.target.closest('[data-command]').dataset.command;$('commandModal').classList.add('hidden');if(c==='run')execute();else if(c==='download')downloadFile();else ai(c);}});
+ document.addEventListener('click',e=>{if(e.target.matches('[data-close]'))$(e.target.dataset.close).classList.add('hidden');if(e.target.id==='settingsModal')e.target.classList.add('hidden');});
  $('bottomContent').addEventListener('click',e=>{const p=e.target.closest('[data-line]');if(p&&state.editor){state.editor.revealLineInCenter(Number(p.dataset.line));state.editor.setPosition({lineNumber:Number(p.dataset.line),column:1});state.editor.focus();}if(e.target.id==='applyDiff')applyAI();if(e.target.id==='rejectDiff')rejectAI();if(e.target.matches('[data-ai]'))ai(e.target.dataset.ai);});
  $('fileTabs').addEventListener('click',e=>{const close=e.target.closest('[data-close-file]');if(close){const n=close.dataset.closeFile;state.files.delete(n);if(state.active===n){const next=[...state.files.keys()][0];if(next){state.active=next;const f=current();state.editor.setValue(f.content);monaco.editor.setModelLanguage(state.editor.getModel(),f.language);}else{state.active=null;$('editorEmpty').classList.remove('hidden');state.editor.setValue('');}}renderTabs();renderContext();return;}const tab=e.target.closest('[data-file]');if(tab){state.active=tab.dataset.file;const f=current();state.editor.setValue(f.content);monaco.editor.setModelLanguage(state.editor.getModel(),f.language);renderTabs();renderContext();scheduleLive();}});
  window.addEventListener('dragover',e=>e.preventDefault());window.addEventListener('drop',e=>{e.preventDefault();if(e.dataTransfer.files.length)readFile(e.dataTransfer.files[0]);});
- document.addEventListener('keydown',e=>{if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='k'){e.preventDefault();$('commandModal').classList.remove('hidden');$('commandSearch').focus();}if((e.metaKey||e.ctrlKey)&&e.key==='Enter'){e.preventDefault();execute();}if(e.key==='Escape')document.querySelectorAll('.modal:not(.hidden)').forEach(x=>x.classList.add('hidden'));});
+ document.addEventListener('keydown',e=>{if((e.metaKey||e.ctrlKey)&&e.key==='Enter'){e.preventDefault();execute();}if(e.key==='Escape')document.querySelectorAll('.modal:not(.hidden)').forEach(x=>x.classList.add('hidden'));});
 }
 init();
 </script>
