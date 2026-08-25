@@ -83,11 +83,6 @@
     const f = current();
     $('workspaceName').textContent = f ? `${f.name}${f.dirty ? ' •' : ''}` : 'No file';
     $('fileStatus').textContent = f ? f.name : 'No file';
-    const run = $('runBtn');
-    const showRun = !!f && EXECUTABLE.has(f.language) && !isWebWorkspace();
-    run.classList.toggle('hidden', !showRun);
-    run.disabled = !f || state.running;
-    run.textContent = state.running ? 'Running…' : 'Run';
   }
 
   async function detectProject() {
@@ -350,7 +345,7 @@
     try {
       const response = await fetch('/execute/', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({code:f.content, filename:f.name}) });
       const data = await response.json().catch(() => ({}));
-      if (revision !== state.aiRevision) return;
+      if (revision !== state.executionRevision) return;
       if (!response.ok) throw new Error(data.detail || `Execution request failed (${response.status})`);
       if (data.stdout) addEvent('stdout', data.stdout, 'ok');
       if (data.stderr) addEvent(data.ok ? 'stderr' : 'Error', data.stderr, data.ok ? '' : 'bad');
@@ -476,9 +471,9 @@
     state.codeAiMode = mode;
     document.querySelectorAll('[data-codeai-mode]').forEach((b) => b.classList.toggle('active', b.dataset.codeaiMode === mode));
     $('codeAiPrompt').classList.toggle('hidden', mode !== 'custom');
-    $('runCodeAi').textContent = mode === 'custom' ? 'Apply' : 'Run';
     $('codeAiStatus').textContent = mode === 'custom' ? 'Waiting for your instruction' : 'Ready';
     if (mode === 'custom') $('codeAiPrompt').focus();
+    else runCodeAI();
   }
 
   function renderPanel(panel) {
@@ -568,7 +563,6 @@
     $('newFileBtn').onclick = () => { $('newFileName').value = 'untitled.txt'; $('newFileModal').classList.remove('hidden'); $('newFileName').focus(); };
     $('fileInput').onchange = (e) => { openFiles(e.target.files); e.target.value = ''; };
     $('folderInput').onchange = (e) => { openFiles(e.target.files); e.target.value = ''; };
-    $('runBtn').onclick = () => execute(false);
     $('settingsBtn').onclick = () => $('settingsModal').classList.remove('hidden');
     $('themeBtn').onclick = () => { state.theme = state.theme === 'dark' ? 'light' : 'dark'; localStorage.setItem('bugfalse-theme', state.theme); document.body.classList.toggle('light', state.theme === 'light'); state.monaco?.editor.setTheme(state.theme === 'light' ? 'vs' : 'vs-dark'); };
     $('bottomToggle').onclick = () => setBottomCollapsed(!$('bottomPanel').classList.contains('collapsed'));
@@ -580,7 +574,6 @@
     $('codeAiToggle').onclick = (e) => { e.stopPropagation(); $('codeAiPopover').classList.toggle('hidden'); };
     $('closeCodeAi').onclick = () => $('codeAiPopover').classList.add('hidden');
     document.querySelectorAll('[data-codeai-mode]').forEach((b) => b.onclick = () => setCodeAiMode(b.dataset.codeaiMode));
-    $('runCodeAi').onclick = runCodeAI;
     $('codeAiPrompt').addEventListener('keydown', (e) => { if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') runCodeAI(); });
 
     document.querySelectorAll('.panel-tab').forEach((b) => b.onclick = () => renderPanel(b.dataset.panel));
@@ -629,7 +622,6 @@
       if (mod && e.key.toLowerCase() === 's') { e.preventDefault(); saveCurrent(); }
       if (mod && e.key.toLowerCase() === 'o') { e.preventDefault(); $('fileInput').click(); }
       if (mod && e.key.toLowerCase() === 'b') { e.preventDefault(); setSidebarCollapsed(!$('app').classList.contains('sidebar-collapsed')); }
-      if (mod && e.key === 'Enter' && current() && EXECUTABLE.has(current().language) && !isWebWorkspace()) { e.preventDefault(); execute(false); }
       if (e.key === 'Escape') { showFileMenu(false); $('codeAiPopover').classList.add('hidden'); document.querySelectorAll('.modal:not(.hidden)').forEach((m) => m.classList.add('hidden')); }
     });
 

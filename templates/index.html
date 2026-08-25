@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="description" content="BugFalse — focused AI engineering workspace.">
   <title>BugFalse — AI Engineering</title>
-  <link rel="stylesheet" href="/static/css/styles.css?v=20260825-audit1">
+  <link rel="stylesheet" href="/static/css/styles.css?v=20260825-codeai2">
 </head>
 <body>
 <div class="app" id="app">
@@ -14,7 +14,6 @@
     <button class="file-button" id="fileMenuBtn" type="button">File <span>⌄</span></button>
     <div class="active-name" id="workspaceName">No file</div>
     <div class="top-spacer"></div>
-    <button class="context-action hidden" id="runBtn" type="button">Run</button>
     <button class="codeai-button" id="codeAiToggle" type="button">CodeAI</button>
     <button class="icon-button" id="themeBtn" type="button" title="Toggle theme" aria-label="Toggle theme">☼</button>
     <button class="icon-button" id="settingsBtn" type="button" title="Settings" aria-label="Settings">⚙</button>
@@ -89,7 +88,7 @@
       <button type="button" data-codeai-mode="custom">Change…</button>
     </div>
     <textarea id="codeAiPrompt" class="hidden" rows="3" placeholder="What should change?"></textarea>
-    <div class="codeai-foot"><span id="codeAiStatus">Ready</span><button class="primary" id="runCodeAi" type="button">Run</button></div>
+    <div class="codeai-foot"><span id="codeAiStatus">Ready</span></div>
   </div>
 
   <footer class="statusbar">
@@ -107,6 +106,6 @@
 
 <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs/loader.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
-<script src="/static/js/app.js?v=20260825-audit1"></script>
+<script src="/static/js/app.js?v=20260825-codeai2"></script>
 </body>
 </html>

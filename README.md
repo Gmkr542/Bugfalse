@@ -84,3 +84,9 @@ The suite covers health, debug normalization, chatbot API compatibility, runtime
 ## Deployment
 
 `Dockerfile`, `Procfile`, and `render.yaml` are included. For public arbitrary-code execution, use stronger isolation than a single shared application process (container-per-job or another sandbox boundary with CPU, memory, process, filesystem, network, timeout, and output limits).
+
+## Current AI behavior
+
+- CodeAI is the single AI entry point in the editor; there is no Run button or AI chat UI.
+- Fix and Improve operate directly on the current file and then validate/render automatically.
+- Groq model selection is resilient to model retirement: if `GROQ_MODEL` is empty, BugFalse discovers a currently available chat model; if a configured model returns 404, it automatically discovers and retries with an available model.

@@ -8,6 +8,64 @@ from utils.parser import clean_json
 
 logger = logging.getLogger(__name__)
 
+_MODEL_CACHE = {"model": None, "expires": 0}
+_PREFERRED_MODELS = [
+    "openai/gpt-oss-120b",
+    "llama-4-maverick-17b-128e-instruct",
+    "llama-4-scout-17b-16e-instruct",
+    "qwen/qwen3-32b",
+    "llama-3.1-8b-instant",
+]
+
+
+def _model_candidates(models):
+    ids = []
+    for item in models or []:
+        if isinstance(item, dict) and item.get("id"):
+            ids.append(str(item["id"]))
+    ranked = []
+    for preferred in _PREFERRED_MODELS:
+        if preferred in ids:
+            ranked.append(preferred)
+    # Prefer instruction/chat models and avoid embedding/guard/whisper/speech models.
+    for mid in ids:
+        low = mid.lower()
+        if mid in ranked or any(x in low for x in ("embed", "whisper", "guard", "tts", "speech")):
+            continue
+        if any(x in low for x in ("instruct", "gpt-oss", "llama", "qwen", "mixtral", "gemma")):
+            ranked.append(mid)
+    return ranked
+
+
+def resolve_model(session, token, configured=None, force_refresh=False):
+    """Return a currently available chat model. Never rely on a retired default."""
+    now = time.time()
+    if not force_refresh and _MODEL_CACHE["model"] and _MODEL_CACHE["expires"] > now:
+        return _MODEL_CACHE["model"]
+    if configured:
+        # Keep the explicit environment choice as the first candidate. If Groq says
+        # 404, the caller can force_refresh and discover a live model instead.
+        return configured
+    response = session.get(
+        "https://api.groq.com/openai/v1/models",
+        headers={"Authorization": f"Bearer {token}"},
+        timeout=15,
+    )
+    if not response.ok:
+        raise requests.exceptions.RequestException(
+            f"Could not discover Groq models ({response.status_code}): {response.text[:500]}"
+        )
+    data = response.json()
+    candidates = _model_candidates(data.get("data", []) if isinstance(data, dict) else [])
+    if not candidates:
+        raise requests.exceptions.RequestException("Groq returned no usable chat models.")
+    _MODEL_CACHE.update(model=candidates[0], expires=now + 900)
+    return candidates[0]
+
+
+def invalidate_model_cache():
+    _MODEL_CACHE.update(model=None, expires=0)
+
 
 def analyze_code(code, api_key=None, max_attempts=4, backoff_factor=1.0, mode="analyze", filename="main.py", language=None, framework=None, instruction=None):
     token = api_key or GROQ_TOKEN
@@ -23,7 +81,7 @@ def analyze_code(code, api_key=None, max_attempts=4, backoff_factor=1.0, mode="a
     }
 
     payload = {
-        "model": GROQ_MODEL,
+        "model": GROQ_MODEL or "",
         "messages": [
             {
                 "role": "system",
@@ -63,6 +121,11 @@ def analyze_code(code, api_key=None, max_attempts=4, backoff_factor=1.0, mode="a
     session.trust_env = False
     session.verify = GROQ_VERIFY_SSL
 
+    try:
+        payload["model"] = resolve_model(session, token, configured=GROQ_MODEL or None)
+    except requests.exceptions.RequestException as exc:
+        return {"error": f"Groq model discovery failed: {exc}"}
+
     attempt = 0
     while attempt < max_attempts:
         try:
@@ -75,6 +138,20 @@ def analyze_code(code, api_key=None, max_attempts=4, backoff_factor=1.0, mode="a
 
             if res.status_code == 401:
                 return {"error": "Groq API token is invalid. Go to https://console.groq.com/keys and create a new key."}
+
+            if res.status_code == 404:
+                # Groq retires models periodically. If the configured model is gone,
+                # discover a currently available model and retry once with it.
+                invalidate_model_cache()
+                try:
+                    discovered = resolve_model(session, token, configured=None, force_refresh=True)
+                    if discovered and discovered != payload.get("model"):
+                        payload["model"] = discovered
+                        res = session.post(GROQ_URL, headers=headers, json=payload, timeout=60)
+                    else:
+                        return {"error": f"Groq model is unavailable (404): {res.text[:1200]}", "hint": "Set GROQ_MODEL to a model currently listed by Groq, or leave GROQ_MODEL empty for automatic discovery."}
+                except requests.exceptions.RequestException as exc:
+                    return {"error": f"Groq model is unavailable (404): {res.text[:900]}", "hint": f"Automatic model discovery failed: {exc}"}
 
             if res.status_code == 400:
                 # Some Groq models/endpoints may reject JSON-mode even though the
@@ -161,7 +238,7 @@ def analyze_code(code, api_key=None, max_attempts=4, backoff_factor=1.0, mode="a
                     imp = parsed["improvements"].strip()
                     parsed["improvements"] = [imp] if imp else []
                 parsed.setdefault("provider", "groq")
-                parsed.setdefault("model", GROQ_MODEL)
+                parsed.setdefault("model", payload.get("model") or GROQ_MODEL)
                 if mode in {"fix", "improve", "refactor", "optimize"} and not isinstance(parsed.get("fixed_code"), str):
                     parsed["fixed_code"] = ""
                 return parsed
