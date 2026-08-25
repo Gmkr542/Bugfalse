@@ -1,22 +1,11 @@
-{"timestamp": "2026-08-25 06:21:05,559", "level": "INFO", "logger": "httpx", "message": "HTTP Request: POST http://testserver/chatbot/ \"HTTP/1.1 200 OK\""}
-{"timestamp": "2026-08-25 06:21:05,565", "level": "INFO", "logger": "httpx", "message": "HTTP Request: POST http://testserver/chatbot/ \"HTTP/1.1 200 OK\""}
-{"timestamp": "2026-08-25 06:21:05,569", "level": "INFO", "logger": "httpx", "message": "HTTP Request: GET http://testserver/chatbot/history \"HTTP/1.1 200 OK\""}
-{"timestamp": "2026-08-25 06:21:05,573", "level": "INFO", "logger": "httpx", "message": "HTTP Request: POST http://testserver/chatbot/clear \"HTTP/1.1 200 OK\""}
-{"timestamp": "2026-08-25 06:21:05,576", "level": "INFO", "logger": "httpx", "message": "HTTP Request: POST http://testserver/debug/ \"HTTP/1.1 422 Unprocessable Entity\""}
-{"timestamp": "2026-08-25 06:21:05,580", "level": "INFO", "logger": "httpx", "message": "HTTP Request: POST http://testserver/debug/ \"HTTP/1.1 200 OK\""}
-{"timestamp": "2026-08-25 06:21:05,584", "level": "INFO", "logger": "httpx", "message": "HTTP Request: POST http://testserver/debug/ \"HTTP/1.1 200 OK\""}
-{"timestamp": "2026-08-25 06:21:05,592", "level": "INFO", "logger": "httpx", "message": "HTTP Request: GET http://testserver/health \"HTTP/1.1 200 OK\""}
-{"timestamp": "2026-08-25 06:21:05,595", "level": "INFO", "logger": "httpx", "message": "HTTP Request: GET http://testserver/status \"HTTP/1.1 200 OK\""}
-{"timestamp": "2026-08-25 06:21:05,599", "level": "INFO", "logger": "httpx", "message": "HTTP Request: HEAD http://testserver/status \"HTTP/1.1 200 OK\""}
-{"timestamp": "2026-08-25 06:21:05,607", "level": "INFO", "logger": "httpx", "message": "HTTP Request: GET http://testserver/ \"HTTP/1.1 200 OK\""}
-{"timestamp": "2026-08-25 06:32:35,065", "level": "INFO", "logger": "httpx", "message": "HTTP Request: POST http://testserver/chatbot/ \"HTTP/1.1 200 OK\""}
-{"timestamp": "2026-08-25 06:32:35,070", "level": "INFO", "logger": "httpx", "message": "HTTP Request: POST http://testserver/chatbot/ \"HTTP/1.1 200 OK\""}
-{"timestamp": "2026-08-25 06:32:35,074", "level": "INFO", "logger": "httpx", "message": "HTTP Request: GET http://testserver/chatbot/history \"HTTP/1.1 200 OK\""}
-{"timestamp": "2026-08-25 06:32:35,077", "level": "INFO", "logger": "httpx", "message": "HTTP Request: POST http://testserver/chatbot/clear \"HTTP/1.1 200 OK\""}
-{"timestamp": "2026-08-25 06:32:35,081", "level": "INFO", "logger": "httpx", "message": "HTTP Request: POST http://testserver/debug/ \"HTTP/1.1 422 Unprocessable Entity\""}
-{"timestamp": "2026-08-25 06:32:35,085", "level": "INFO", "logger": "httpx", "message": "HTTP Request: POST http://testserver/debug/ \"HTTP/1.1 200 OK\""}
-{"timestamp": "2026-08-25 06:32:35,089", "level": "INFO", "logger": "httpx", "message": "HTTP Request: POST http://testserver/debug/ \"HTTP/1.1 200 OK\""}
-{"timestamp": "2026-08-25 06:32:35,093", "level": "INFO", "logger": "httpx", "message": "HTTP Request: GET http://testserver/health \"HTTP/1.1 200 OK\""}
-{"timestamp": "2026-08-25 06:32:35,097", "level": "INFO", "logger": "httpx", "message": "HTTP Request: GET http://testserver/status \"HTTP/1.1 200 OK\""}
-{"timestamp": "2026-08-25 06:32:35,101", "level": "INFO", "logger": "httpx", "message": "HTTP Request: HEAD http://testserver/status \"HTTP/1.1 200 OK\""}
-{"timestamp": "2026-08-25 06:32:35,109", "level": "INFO", "logger": "httpx", "message": "HTTP Request: GET http://testserver/ \"HTTP/1.1 200 OK\""}
+{"timestamp": "2026-08-25 06:47:57,268", "level": "INFO", "logger": "httpx", "message": "HTTP Request: POST http://testserver/chatbot/ \"HTTP/1.1 200 OK\""}
+{"timestamp": "2026-08-25 06:47:57,273", "level": "INFO", "logger": "httpx", "message": "HTTP Request: POST http://testserver/chatbot/ \"HTTP/1.1 200 OK\""}
+{"timestamp": "2026-08-25 06:47:57,277", "level": "INFO", "logger": "httpx", "message": "HTTP Request: GET http://testserver/chatbot/history \"HTTP/1.1 200 OK\""}
+{"timestamp": "2026-08-25 06:47:57,281", "level": "INFO", "logger": "httpx", "message": "HTTP Request: POST http://testserver/chatbot/clear \"HTTP/1.1 200 OK\""}
+{"timestamp": "2026-08-25 06:47:57,286", "level": "INFO", "logger": "httpx", "message": "HTTP Request: POST http://testserver/debug/ \"HTTP/1.1 422 Unprocessable Entity\""}
+{"timestamp": "2026-08-25 06:47:57,290", "level": "INFO", "logger": "httpx", "message": "HTTP Request: POST http://testserver/debug/ \"HTTP/1.1 200 OK\""}
+{"timestamp": "2026-08-25 06:47:57,294", "level": "INFO", "logger": "httpx", "message": "HTTP Request: POST http://testserver/debug/ \"HTTP/1.1 200 OK\""}
+{"timestamp": "2026-08-25 06:47:57,297", "level": "INFO", "logger": "httpx", "message": "HTTP Request: GET http://testserver/health \"HTTP/1.1 200 OK\""}
+{"timestamp": "2026-08-25 06:47:57,301", "level": "INFO", "logger": "httpx", "message": "HTTP Request: GET http://testserver/status \"HTTP/1.1 200 OK\""}
+{"timestamp": "2026-08-25 06:47:57,304", "level": "INFO", "logger": "httpx", "message": "HTTP Request: HEAD http://testserver/status \"HTTP/1.1 200 OK\""}
+{"timestamp": "2026-08-25 06:47:57,310", "level": "INFO", "logger": "httpx", "message": "HTTP Request: GET http://testserver/ \"HTTP/1.1 200 OK\""}

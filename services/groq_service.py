@@ -9,7 +9,7 @@ from utils.parser import clean_json
 logger = logging.getLogger(__name__)
 
 
-def analyze_code(code, api_key=None, max_attempts=4, backoff_factor=1.0, mode="analyze"):
+def analyze_code(code, api_key=None, max_attempts=4, backoff_factor=1.0, mode="analyze", filename="main.py", language=None, framework=None):
     token = api_key or GROQ_TOKEN
     if not token:
         return {"error": "Missing Groq API token. Set the GROQ_TOKEN environment variable or paste your key in the UI. Get one free at https://console.groq.com/keys"}
@@ -37,7 +37,7 @@ def analyze_code(code, api_key=None, max_attempts=4, backoff_factor=1.0, mode="a
             {
                 "role": "user",
                 "content": (
-                    f"Requested mode: {mode}.\n\n"
+                    f"Requested mode: {mode}.\nFilename: {filename}\nLanguage: {language or 'unknown'}\nFramework: {framework or 'none'}\n\n"
                     "Analyze the code and return ONLY this JSON structure:\n\n"
                     "{\n"
                     "  \"issues\": [{\"severity\": \"error|warning|info\", \"message\": \"\", \"type\": \"\", \"line\": null, \"column\": null}],\n"

@@ -57,8 +57,8 @@ logging.getLogger().addHandler(json_handler)
 
 app = FastAPI(
     title="BugFalse AI Debugger",
-    description="AI-powered Python code debugger using Groq LLM",
-    version="3.0.0",
+    description="AI engineering workspace for code editing, live feedback, debugging and AI improvement.",
+    version="5.0.0",
 )
 
 templates = Jinja2Templates(directory=os.path.join(base_dir, "templates"))

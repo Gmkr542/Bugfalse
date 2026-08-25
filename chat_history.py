@@ -1,6 +1,6 @@
 import json
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 
 BASE_DIR = os.path.dirname(__file__)
 HISTORY_FILE = os.path.join(BASE_DIR, "chat_history.json")
@@ -28,7 +28,7 @@ def append_message(role, text):
     messages.append({
         "role": role,
         "text": text,
-        "timestamp": datetime.utcnow().isoformat() + "Z"
+        "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
     })
     save_history(messages)
     return messages

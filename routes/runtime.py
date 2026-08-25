@@ -1,7 +1,7 @@
 import os
 import shutil
 from fastapi import APIRouter
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 router = APIRouter()
 
@@ -36,7 +36,7 @@ FRAMEWORK_MARKERS = [
 
 class DetectRequest(BaseModel):
     filename: str = "main.py"
-    files: dict[str, str] = {}
+    files: dict[str, str] = Field(default_factory=dict)
 
 
 def detect_language(filename: str):
