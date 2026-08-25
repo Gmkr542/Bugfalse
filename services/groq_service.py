@@ -54,8 +54,9 @@ def analyze_code(code, api_key=None, max_attempts=4, backoff_factor=1.0, mode="a
                 )
             }
         ],
-        "max_tokens": 3000,
-        "temperature": 0.2
+        "max_tokens": max(4000, min(12000, len(code) // 2 + 4000)),
+        "temperature": 0.2,
+        "response_format": {"type": "json_object"}
     }
 
     session = requests.Session()
@@ -76,7 +77,26 @@ def analyze_code(code, api_key=None, max_attempts=4, backoff_factor=1.0, mode="a
                 return {"error": "Groq API token is invalid. Go to https://console.groq.com/keys and create a new key."}
 
             if res.status_code == 400:
-                return {"error": f"Bad request to Groq API: {res.text}"}
+                # Some Groq models/endpoints may reject JSON-mode even though the
+                # OpenAI-compatible endpoint itself is healthy. Retry once without
+                # response_format before reporting the request as failed.
+                try:
+                    error_text = res.text[:1200]
+                except Exception:
+                    error_text = "Bad request"
+                if payload.get("response_format"):
+                    fallback_payload = dict(payload)
+                    fallback_payload.pop("response_format", None)
+                    retry = session.post(GROQ_URL, headers=headers, json=fallback_payload, timeout=60)
+                    if retry.ok:
+                        res = retry
+                    else:
+                        return {"error": f"Groq rejected the request ({retry.status_code}): {retry.text[:1200]}", "hint": "Check GROQ_MODEL and GROQ_TOKEN in Render Environment Variables."}
+                else:
+                    return {"error": f"Bad request to Groq API: {error_text}", "hint": "Check GROQ_MODEL and GROQ_TOKEN in Render Environment Variables."}
+
+            if not res.ok:
+                return {"error": f"Groq request failed ({res.status_code}): {res.text[:1200]}", "hint": "Check GROQ_MODEL, GROQ_TOKEN and the deployed runtime."}
 
             data = res.json()
             logger.debug("Groq raw response: %s", data)
@@ -141,6 +161,9 @@ def analyze_code(code, api_key=None, max_attempts=4, backoff_factor=1.0, mode="a
                     imp = parsed["improvements"].strip()
                     parsed["improvements"] = [imp] if imp else []
                 parsed.setdefault("provider", "groq")
+                parsed.setdefault("model", GROQ_MODEL)
+                if mode in {"fix", "improve", "refactor", "optimize"} and not isinstance(parsed.get("fixed_code"), str):
+                    parsed["fixed_code"] = ""
                 return parsed
             except Exception as exc:
                 return {

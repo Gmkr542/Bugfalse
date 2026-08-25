@@ -416,14 +416,24 @@
       if (revision !== state.aiRevision) return;
       if (!response.ok) throw new Error(data.detail || `CodeAI request failed (${response.status})`);
       if (data.error) {
-        addEvent('CodeAI error', data.error, 'bad');
-        $('codeAiStatus').textContent = 'Failed';
-        setStatus('Error', 'error');
+        const detail = [data.error, data.hint].filter(Boolean).join(' — ');
+        addEvent('CodeAI error', detail, 'bad');
+        $('codeAiStatus').textContent = `Failed: ${String(detail).slice(0, 90)}`;
+        setStatus('CodeAI failed', 'error');
+        renderPanel('output');
         return;
       }
 
       state.analysis = data;
       const updated = typeof data.fixed_code === 'string' ? data.fixed_code : '';
+      if (['fix','improve','refactor','optimize','custom'].includes(mode) && !updated.trim()) {
+        const reason = data.analysis || 'AI returned no revised code.';
+        addEvent('CodeAI error', reason, 'bad');
+        $('codeAiStatus').textContent = `Failed: ${String(reason).slice(0, 90)}`;
+        setStatus('CodeAI failed', 'error');
+        renderPanel('output');
+        return;
+      }
       const shouldApply = ['fix','improve','refactor','optimize'].includes(mode) || mode === 'custom';
       if (shouldApply && updated.trim() && updated.trim() !== source.trim()) {
         f.content = updated;
@@ -450,10 +460,12 @@
       }
       renderPanel('output');
     } catch (error) {
-      if (revision === state.requestRevision) {
-        addEvent('CodeAI error', error.message || String(error), 'bad');
-        $('codeAiStatus').textContent = 'Failed';
-        setStatus('Error', 'error');
+      if (revision === state.aiRevision) {
+        const message = error?.message || String(error);
+        addEvent('CodeAI error', message, 'bad');
+        $('codeAiStatus').textContent = `Failed: ${message.slice(0, 90)}`;
+        setStatus('CodeAI failed', 'error');
+        renderPanel('output');
       }
     } finally {
       if (revision === state.aiRevision) { state.pendingAi = false; updateHeader(); }
