@@ -82,3 +82,4 @@
 .toolbar-btn:hover{background:#171c25}
 .primary-btn{background:#7568e8}
 @media(max-width:780px){.ai-reopen{top:58px}.ai-panel.collapsed{display:none}}
+.ai-panel.collapsed{display:none!important}.ai-reopen{position:absolute;right:12px;top:64px;z-index:20;height:32px;padding:0 11px;border:1px solid #303747;background:#111722;color:#d8d3ff;border-radius:7px;font-size:10px;font-weight:700;box-shadow:0 8px 25px rgba(0,0,0,.22);cursor:pointer}.ai-reopen:hover{background:#181e2b;border-color:#5148a2}.ai-code{background:#0a0d12;border:1px solid #242a36;border-radius:6px;padding:9px;overflow:auto;color:#cbd3df}.chat-msg.assistant code{background:#1a1f2a;border-radius:4px;padding:1px 4px;color:#d7d0ff}.chat-msg.assistant strong{color:#f0f2f7}.ai-progress{display:flex;align-items:center;color:#9b91ff}.runtime-pill{max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}@media(max-width:780px){.ai-reopen{top:58px}.ai-panel.collapsed{display:none!important}}

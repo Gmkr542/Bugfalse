@@ -14,6 +14,7 @@ from fastapi.templating import Jinja2Templates
 from routes.debug import router as debug_router
 from routes.chatbot import router as chatbot_router
 from routes.execute import router as execute_router
+from routes.runtime import router as runtime_router
 
 logging.basicConfig(
     level=os.getenv("LOG_LEVEL", "INFO").upper(),
@@ -57,7 +58,7 @@ logging.getLogger().addHandler(json_handler)
 app = FastAPI(
     title="BugFalse AI Debugger",
     description="AI-powered Python code debugger using Groq LLM",
-    version="2.1.0",
+    version="3.0.0",
 )
 
 templates = Jinja2Templates(directory=os.path.join(base_dir, "templates"))
@@ -70,6 +71,7 @@ app.mount(
 app.include_router(debug_router, prefix="/debug", tags=["Debug"])
 app.include_router(chatbot_router, prefix="/chatbot", tags=["Chatbot"])
 app.include_router(execute_router, prefix="/execute", tags=["Execution"])
+app.include_router(runtime_router, prefix="/runtime", tags=["Runtime"])
 
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request):
