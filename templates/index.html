@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="description" content="BugFalse — a focused AI engineering workspace.">
   <title>BugFalse — AI Engineering</title>
-  <link rel="stylesheet" href="/static/css/styles.css?v=20260825-excellence">
+  <link rel="stylesheet" href="/static/css/styles.css?v=20260825-codeai">
 </head>
 <body>
 <div class="app" id="app">
@@ -13,7 +13,7 @@
     <div class="brand"><span class="brand-mark">B</span><span>BugFalse</span><span class="brand-sub">AI ENGINEERING</span></div>
     <button class="header-file" id="fileMenuBtn">File <span>⌄</span></button>
     <div class="workspace-name" id="workspaceName">Untitled workspace</div>
-    <div class="top-actions"><button class="top-btn" id="sidebarToggle" title="Toggle Explorer" aria-label="Toggle Explorer">☰</button><button class="top-btn" id="themeBtn" title="Theme">☼</button><button class="top-btn" id="settingsBtn" title="Settings">⚙</button></div>
+    <div class="top-actions"><button class="top-btn codeai-toggle" id="codeAiToggle" title="CodeAI">CodeAI</button><button class="top-btn" id="sidebarToggle" title="Toggle Explorer" aria-label="Toggle Explorer">☰</button><button class="top-btn" id="themeBtn" title="Theme">☼</button><button class="top-btn" id="settingsBtn" title="Settings">⚙</button></div>
     <div class="file-menu hidden" id="fileMenu">
       <button data-file-action="new">New File</button>
       <button data-file-action="open">Open File</button>
@@ -42,11 +42,9 @@
     <main class="main">
       <div class="toolbar">
         <div class="toolbar-left">
-          <button class="tool-btn" id="openBtn">Open</button>
           <input type="file" id="fileInput" hidden multiple>
           <input type="file" id="folderInput" hidden webkitdirectory directory multiple>
           <button class="tool-btn" id="runBtn" disabled>Run</button>
-          <button class="tool-btn stop" id="stopBtn" disabled>Stop</button>
         </div>
         <div class="toolbar-right">
           <label class="live-control"><input type="checkbox" id="liveToggle" checked><span></span>Live</label>
@@ -83,8 +81,7 @@
           </div>
           <div class="web-content">
             <div class="web-preview-wrap"><iframe id="previewFrame" title="Live web output" sandbox="allow-scripts"></iframe></div>
-            <div class="inspect-bar"><button class="inspect-tab active" data-inspect="console">Console</button><button class="inspect-tab" data-inspect="elements">Elements</button><span class="inspect-status" id="previewStatus">Live</span></div>
-            <div class="inspect-panel" id="inspectPanel"></div>
+            <span class="inspect-status web-live-status" id="previewStatus">Live</span>
           </div>
         </section>
       </div>
@@ -101,15 +98,16 @@
       </section>
     </main>
 
-    <aside class="ai" id="aiPanel">
-      <div class="ai-head"><div><strong>BugFalse AI</strong><small>Code-aware engineering assistant</small></div><button class="close-ai" id="closeAi" aria-label="Close AI">×</button></div>
-      <div class="ai-context" id="aiContext">Open a file to give AI context.</div>
-      <div class="ai-modes"><button class="active" data-mode="analyze">Analyze</button><button data-mode="fix">Fix</button><button data-mode="improve">Improve</button></div>
-      <div class="chat" id="chat"><div class="welcome"><span class="ai-symbol">✦</span><h2>What are you working on?</h2><p>Ask about the current file, a failure, an improvement, or a design decision.</p><div class="quick"><button data-question="Find the most important problem in this file.">Find the main problem</button><button data-question="Improve this code while preserving its behavior.">Improve this code</button></div></div></div>
-      <div class="composer"><textarea id="aiInput" rows="2" placeholder="Ask BugFalse about this code…"></textarea><div><span>Enter to send · Shift+Enter for newline</span><button class="send" id="sendAi" aria-label="Send">↑</button></div></div>
-    </aside>
-    <button class="ai-reopen hidden" id="reopenAi" aria-label="Open BugFalse AI">✦ AI</button>
-  </div>
+    <div class="codeai-popover hidden" id="codeAiPopover" role="dialog" aria-label="CodeAI controls">
+      <div class="codeai-head"><div><strong>CodeAI</strong><small>Improve the current code directly</small></div><button id="closeCodeAi" aria-label="Close CodeAI">×</button></div>
+      <div class="codeai-actions">
+        <button data-codeai-mode="fix">Fix code</button>
+        <button data-codeai-mode="improve">Improve code</button>
+        <button data-codeai-mode="custom">Make a change…</button>
+      </div>
+      <textarea id="codeAiPrompt" rows="3" placeholder="Tell CodeAI what you want changed…"></textarea>
+      <div class="codeai-foot"><span id="codeAiStatus">Ready</span><button class="primary" id="runCodeAi">Apply</button></div>
+    </div>
   <footer class="statusbar"><div><span class="status-dot ready" id="statusDot"></span><span id="statusText">Ready</span></div><div><span id="cursor">Ln 1, Col 1</span><span>UTF-8</span><span id="fileStatus">No file</span></div></footer>
 </div>
 
@@ -119,6 +117,6 @@
 
 <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs/loader.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
-<script src="/static/js/app.js?v=20260825-excellence"></script>
+<script src="/static/js/app.js?v=20260825-codeai"></script>
 </body>
 </html>

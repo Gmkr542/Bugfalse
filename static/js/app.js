@@ -5,14 +5,14 @@
   const LANG = {py:'python',js:'javascript',mjs:'javascript',cjs:'javascript',jsx:'javascript',ts:'typescript',tsx:'typescript',java:'java',c:'c',cc:'cpp',cpp:'cpp',cxx:'cpp',cs:'csharp',go:'go',rs:'rust',php:'php',rb:'ruby',swift:'swift',kt:'kotlin',kts:'kotlin',html:'html',css:'css',json:'json',sql:'sql',md:'markdown',yaml:'yaml',yml:'yaml',txt:'plaintext'};
   const PROFILE = {
     python:['🐍','Python','Tracebacks, tests and AI debugging.','Run'], javascript:['JS','JavaScript','Browser/web editing or Node execution.','Run'], typescript:['TS','TypeScript','Typed editing and web-aware diagnostics.','Run'],
-    html:['<>','HTML','Live web workspace with browser-style output.','Web'], css:['#','CSS','Stylesheet editing and diagnostics.','Analyze'], json:['{}','JSON','Validation-focused structured data.','Validate'], sql:['SQL','SQL','Query review and optimization workspace.','Analyze'],
+    html:['<>','HTML','Live web workspace with browser output.','Web'], css:['#','CSS','Stylesheet editing and diagnostics.','Analyze'], json:['{}','JSON','Validation-focused structured data.','Validate'], sql:['SQL','SQL','Query review and optimization workspace.','Analyze'],
     java:['☕','Java','Compile and runtime diagnostics.','Run'], c:['C','C','Compiler diagnostics and build/run feedback.','Run'], cpp:['C++','C++','Compiler diagnostics and build/run feedback.','Run'], go:['Go','Go','Build, run and test feedback.','Run'], rust:['🦀','Rust','Compiler and ownership diagnostics.','Run'], php:['PHP','PHP','Runtime diagnostics.','Run'], ruby:['Rb','Ruby','Runtime diagnostics.','Run'], csharp:['C#','C#','.NET diagnostics.','Run'], swift:['Swift','Swift','Compiler/runtime diagnostics.','Run'], kotlin:['Kt','Kotlin','JVM diagnostics.','Run'], markdown:['M↓','Markdown','Documentation workspace.','Analyze'], yaml:['Y','YAML','Configuration validation workspace.','Validate'], plaintext:['TXT','Text','Plain text workspace.','Analyze']
   };
   const EXECUTABLE = new Set(['python','javascript','typescript','php','ruby','go','rust','c','cpp','java','swift']);
-  const state = {files:new Map(),active:null,editor:null,monaco:null,detected:null,output:null,analysis:null,history:[],events:[],timer:null,debounce:800,running:false,abort:null,theme:'dark',aiMode:'analyze',webConsole:[],webElements:[],viewport:'desktop'};
-  const sample = `def calculate_total(items):\n    total = 0\n    for item in items:\n        if item is None:\n            continue\n        total += item.price\n    return total\n\nprint(calculate_total([]))\n`;
-  const lang = name => LANG[(name.split('.').pop() || '').toLowerCase()] || 'plaintext';
+  const state = {files:new Map(),active:null,editor:null,monaco:null,detected:null,output:null,analysis:null,history:[],events:[],timer:null,debounce:800,running:false,theme:'dark',viewport:'desktop',codeAiMode:'improve',pendingAi:null};
+  const sample = `def calculate_total(items):\n    total = 0\n    for item in items:\n        if item is None:\n            continue\n        total += item.price\n    return tot\n\nprint(calculate_total([]))\n`;
   const current = () => state.active ? state.files.get(state.active) : null;
+  const lang = name => LANG[(name.split('.').pop() || '').toLowerCase()] || 'plaintext';
   const isHtmlWorkspace = () => current()?.language === 'html';
   const setStatus = (text,kind='ready') => { $('statusText').textContent=text; $('statusDot').className='status-dot '+kind; };
   const event = (type,detail,kind='') => { state.events.unshift({time:new Date().toLocaleTimeString(),type,detail,kind}); state.events=state.events.slice(0,100); if(document.querySelector('.panel-tab.active')?.dataset.panel==='output') renderPanel('output'); };
@@ -21,12 +21,11 @@
   function updateContext(){
     const f=current(), p=PROFILE[f?.language]||PROFILE.plaintext, d=state.detected||{};
     $('workspaceName').textContent=f?f.name:'Untitled workspace'; $('fileStatus').textContent=f?f.name:'No file'; $('languageIcon').textContent=p[0]; $('languageTitle').textContent=p[1]; $('frameworkText').textContent=d.framework?` · ${d.framework}`:''; $('languageHint').textContent=p[2];
-    $('languageState').textContent=d.runtime_available===false?'Runtime unavailable':(isHtmlWorkspace()?'Web workspace':(f?'Ready':'Ready'));
+    $('languageState').textContent=d.runtime_available===false?'Runtime unavailable':(isHtmlWorkspace()?'Web workspace':'Ready');
     $('runtimePill').textContent=f?(d.framework?`${d.framework} · ${p[1]}`:p[1]):'No file';
-    $('runBtn').textContent=isHtmlWorkspace()?'':(f?p[3]:'Run'); $('runBtn').style.display=isHtmlWorkspace()?'none':''; $('runBtn').disabled=!f; $('downloadBtn').disabled=!f;
-    $('aiContext').textContent=f?`${f.name} · ${p[1]}${d.framework?' · '+d.framework:''}`:'Open a file to give AI context.';
+    const run=$('runBtn'); run.textContent=f?p[3]:'Run'; run.style.display=(!f||isHtmlWorkspace())?'none':''; run.disabled=!f;
+    $('downloadBtn').disabled=!f;
   }
-
   async function detect(){
     const f=current(); if(!f)return;
     try { const files={}; state.files.forEach((v,k)=>files[k]=v.content.slice(0,100000)); const r=await fetch('/runtime/detect',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({filename:f.name,files})}); state.detected=await r.json(); }
@@ -34,176 +33,105 @@
     updateContext();
   }
   function setEditorLanguage(){ if(!state.editor)return; const f=current(); state.monaco.editor.setModelLanguage(state.editor.getModel(),f?.language||'plaintext'); }
-  function resetFileState(){ state.output=null; state.analysis=null; state.events=[]; state.webConsole=[]; state.webElements=[]; renderPanel('output'); }
+  function resetFileState(){ state.output=null; state.analysis=null; state.events=[]; renderPanel('output'); }
   function openFile(name,content){
     const existing=state.files.get(name); const f={name,content,original:existing?.original??content,language:lang(name),dirty:false}; f.dirty=f.content!==f.original; state.files.set(name,f); state.active=name; $('emptyState').classList.add('hidden'); resetFileState();
     if(state.editor){ state.editor.setValue(content); setEditorLanguage(); state.editor.focus(); }
-    renderTabs(); renderTree(); updateContext(); detect(); updateWorkspaceMode(); if(isHtmlWorkspace()){ event('Opened',`${name} · live web workspace ready`,'ok'); scheduleLive(); } else { event('Opened',name); scheduleLive(); }
+    renderTabs(); renderTree(); updateContext(); detect(); updateWorkspaceMode(); event('Opened',`${name}${isHtmlWorkspace()?' · live web workspace ready':''}`,'ok'); scheduleLive();
   }
   function openFiles(files){ [...files].filter(f=>f.size<=5*1024*1024).forEach(file=>{const r=new FileReader();r.onload=()=>openFile(file.webkitRelativePath||file.name,String(r.result||''));r.readAsText(file);}); }
   function sync(){ const f=current(); if(!f||!state.editor)return false; const v=state.editor.getValue(); if(v===f.content)return false; f.content=v; f.dirty=v!==f.original; renderTabs(); renderTree(); return true; }
-
-  function renderTabs(){
-    $('fileTabs').innerHTML=[...state.files.values()].map(f=>`<button class="file-tab ${f.name===state.active?'active':''}" data-file="${esc(f.name)}"><span class="lang">${esc(f.language)}</span><span class="tab-name">${esc(f.name)}</span>${f.dirty?'<span class="dirty">●</span>':''}<span class="x" data-close-file="${esc(f.name)}">×</span></button>`).join('');
-  }
-  function renderTree(){
-    if(!state.files.size){$('fileTree').innerHTML='<div class="tree-empty">No files</div>';return;}
-    $('fileTree').innerHTML=[...state.files.values()].map(f=>`<div class="tree-file ${f.name===state.active?'active':''}" data-tree-file="${esc(f.name)}"><span class="tree-icon">${esc(f.language==='html'?'<>':f.language==='python'?'🐍':f.language==='javascript'?'JS':'·')}</span><span>${esc(f.name)}</span>${f.dirty?'<b>●</b>':''}<button class="tree-more" data-tree-menu="${esc(f.name)}">···</button></div>`).join('');
-  }
+  function renderTabs(){ $('fileTabs').innerHTML=[...state.files.values()].map(f=>`<button class="file-tab ${f.name===state.active?'active':''}" data-file="${esc(f.name)}"><span class="lang">${esc(f.language)}</span><span class="tab-name">${esc(f.name)}</span>${f.dirty?'<span class="dirty">●</span>':''}<span class="x" data-close-file="${esc(f.name)}">×</span></button>`).join(''); }
+  function renderTree(){ if(!state.files.size){$('fileTree').innerHTML='<div class="tree-empty">No files</div>';return;} $('fileTree').innerHTML=[...state.files.values()].map(f=>`<div class="tree-file ${f.name===state.active?'active':''}" data-tree-file="${esc(f.name)}"><span class="tree-icon">${esc(f.language==='html'?'<>':f.language==='python'?'🐍':f.language==='javascript'?'JS':'·')}</span><span>${esc(f.name)}</span>${f.dirty?'<b>●</b>':''}<button class="tree-more" data-tree-menu="${esc(f.name)}">···</button></div>`).join(''); }
   function activateFile(name){ const f=state.files.get(name); if(!f)return; state.active=name; state.editor.setValue(f.content); setEditorLanguage(); resetFileState(); renderTabs(); renderTree(); updateContext(); detect(); updateWorkspaceMode(); scheduleLive(); }
   function closeFile(name){ state.files.delete(name); if(state.active===name){ const next=state.files.keys().next().value; if(next)activateFile(next); else {state.active=null;state.editor.setValue('');$('emptyState').classList.remove('hidden');state.detected=null;updateContext();updateWorkspaceMode();} } renderTabs();renderTree(); }
+  function createFile(name){ name=(name||'untitled.txt').trim()||'untitled.txt'; if(state.files.has(name)){name='untitled-'+Date.now()+'.txt';} openFile(name,''); addHistory('Created',name); }
+  function renameCurrent(name){ const f=current(); name=(name||'').trim(); if(!f||!name||name===f.name)return; if(state.files.has(name)){event('Rename','A file with that name already exists.','bad');return;} state.files.delete(f.name); f.name=name; f.language=lang(name); state.files.set(name,f); state.active=name; renderTabs();renderTree();setEditorLanguage();updateContext();detect();updateWorkspaceMode();event('Renamed',`${name}`,'ok'); }
+  function saveCurrent(){ const f=current(); if(!f)return; f.original=f.content;f.dirty=false;renderTabs();renderTree();addHistory('Saved',f.name);event('Saved',f.name,'ok');setStatus('Saved','ready'); }
+  function downloadBlob(name,content,type='text/plain'){ const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([content],{type}));a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000); }
+  function downloadCurrent(){ const f=current(); if(f)downloadBlob(f.name,f.content); }
+  async function downloadProject(){ if(typeof JSZip==='undefined'){return downloadCurrent();} const zip=new JSZip();state.files.forEach(f=>zip.file(f.name,f.content));const blob=await zip.generateAsync({type:'blob'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='bugfalse-project.zip';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000); }
 
-  function updateWorkspaceMode(){
-    const web=isHtmlWorkspace(); $('webPane').classList.toggle('hidden',!web); $('editorStage').classList.toggle('web-mode',web);
-    if(web){ $('webPath').textContent=current()?.name||'index.html'; updateWeb(); }
-    else { $('inspectPanel').innerHTML=''; }
-  }
+  function updateWorkspaceMode(){ const web=isHtmlWorkspace(); $('webPane').classList.toggle('hidden',!web); $('editorStage').classList.toggle('web-mode',web); if(web){$('webPath').textContent=current()?.name||'index.html';updateWeb();}else $('previewStatus').textContent=''; refreshLayout(); }
   function buildWebSource(){
     const html=current()?.content||''; let source=html;
     const css=[...state.files.values()].filter(f=>f.language==='css').map(f=>`<style data-bugfalse-file="${esc(f.name)}">${f.content}</style>`).join('');
     const js=[...state.files.values()].filter(f=>f.language==='javascript' && f.name!==current()?.name).map(f=>`<script data-bugfalse-file="${esc(f.name)}">${f.content.replace(/<\/script/gi,'<\\/script')}</script>`).join('');
-    if(/<html[\s>]/i.test(source)){ source=source.replace(/<head([^>]*)>/i,`<head$1>${css}`).replace(/<\/body>/i,`${js}</body>`); }
-    else source=`<!doctype html><html><head><meta charset="utf-8">${css}</head><body>${source}${js}</body></html>`;
-    const bridge=`<script>(function(){const send=(type,args)=>parent.postMessage({source:'bugfalse-web',type,args:Array.from(args).map(x=>{try{return typeof x==='string'?x:JSON.stringify(x)}catch{return String(x)}})},'*');['log','info','warn','error'].forEach(k=>{const o=console[k];console[k]=function(){send(k,arguments);o.apply(console,arguments)}});window.addEventListener('error',e=>send('error',[e.message+' @ '+(e.filename||'page')+':'+e.lineno]));window.addEventListener('unhandledrejection',e=>send('error',['Unhandled promise rejection',e.reason]));})();<\/script>`;
-    return source.replace(/<head([^>]*)>/i,`<head$1>${bridge}`);
+    const bridge=`<script>(function(){const send=(type,args)=>parent.postMessage({source:'bugfalse-web',type,args:Array.from(args).map(x=>{try{return typeof x==='string'?x:JSON.stringify(x)}catch{return String(x)}})},'*');['log','info','warn','error'].forEach(k=>{const o=console[k];console[k]=function(){send(k,arguments);o.apply(console,arguments)}});window.addEventListener('error',e=>send('error',[e.message+' @ '+(e.filename||'page')+':'+e.lineno]));window.addEventListener('unhandledrejection',e=>send('error',['Unhandled promise rejection',e.reason]));})();<\\/script>`;
+    if(/<html[\s>]/i.test(source)){ source=source.replace(/<head([^>]*)>/i,`<head$1>${bridge}${css}`).replace(/<\/body>/i,`${js}</body>`); }
+    else source=`<!doctype html><html><head><meta charset="utf-8">${bridge}${css}</head><body>${source}${js}</body></html>`;
+    return source;
   }
-  function updateWeb(){
-    if(!isHtmlWorkspace())return; $('webPath').textContent=current()?.name||'index.html'; $('previewFrame').srcdoc=buildWebSource(); $('previewStatus').textContent='Live · '+new Date().toLocaleTimeString();
-    const html=current()?.content||''; try { const doc=new DOMParser().parseFromString(html,'text/html'); state.webElements=buildElementTree(doc.body); renderInspect('elements'); } catch {}
+  function updateWeb(){ if(!isHtmlWorkspace())return; $('webPath').textContent=current()?.name||'index.html';$('previewFrame').srcdoc=buildWebSource();$('previewStatus').textContent='Live · '+new Date().toLocaleTimeString(); }
+
+  function scheduleLive(){ clearTimeout(state.timer); if(!$('liveToggle')?.checked || !current())return; state.timer=setTimeout(()=>{if(isHtmlWorkspace()){sync();updateWeb();event('Updated',`${current().name} changed · live web output refreshed`,'ok');setStatus('Live','ready');}else if(EXECUTABLE.has(current().language)){execute(true);}else{analyzeLocal();}},state.debounce); }
+  async function execute(live=false){ const f=current(); if(!f)return; sync(); if(isHtmlWorkspace())return updateWeb(); if(!EXECUTABLE.has(f.language)){analyzeLocal();return;} if(state.running)return; state.running=true;setStatus('Running','running');event(live?'Running':'Run',`${f.name} · ${f.language}`);renderPanel('output');
+    try{const r=await fetch('/execute/',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code:f.content,filename:f.name})});const data=await r.json();state.output=data; if(data.stdout)event('stdout',data.stdout,'ok');if(data.stderr)event(data.ok?'stderr':'Error',data.stderr,data.ok?'':'bad');event('Finished',data.ok?`exit code 0 · ${data.duration_ms} ms`:`exit code ${data.exit_code ?? 'unknown'} · ${data.duration_ms ?? 0} ms`,data.ok?'ok':'bad');setStatus(data.ok?'Ready':'Error',data.ok?'ready':'error');parseProblems(data.stderr||'');renderPanel('output');}
+    catch(err){state.output={ok:false,stderr:String(err)};event('Error',String(err),'bad');setStatus('Error','error');renderPanel('output');}
+    finally{state.running=false;}
   }
-  function buildElementTree(root,depth=0){ if(!root)return[]; return [...root.children].slice(0,80).map(el=>({tag:el.tagName.toLowerCase(),id:el.id||'',classes:[...el.classList].slice(0,4),depth,children:buildElementTree(el,depth+1)})); }
-  function flattenElements(nodes,out=[]){nodes.forEach(n=>{out.push(n);flattenElements(n.children,out)});return out;}
-  function renderInspect(kind='console'){
-    document.querySelectorAll('.inspect-tab').forEach(b=>b.classList.toggle('active',b.dataset.inspect===kind));
-    if(kind==='console') $('inspectPanel').innerHTML=state.webConsole.length?state.webConsole.map(x=>`<div class="console-line ${esc(x.type)}"><span>${esc(x.time)}</span><b>${esc(x.type)}</b><code>${esc(x.text)}</code></div>`).join(''):'<div class="inspect-empty">Console is clear.</div>';
-    else { const flat=flattenElements(state.webElements); $('inspectPanel').innerHTML=flat.length?flat.map(n=>`<div class="element-line" style="--depth:${n.depth}"><span>›</span>&lt;${esc(n.tag)}${n.id?' id="'+esc(n.id)+'"':''}${n.classes.length?' class="'+esc(n.classes.join(' '))+'"':''}&gt;</div>`).join(''):'<div class="inspect-empty">No body elements yet.</div>'; }
-  }
-  function scheduleLive(){
-    clearTimeout(state.timer); if(!$('liveToggle').checked)return; const f=current(); if(!f)return;
-    const targetName=f.name, captured=state.editor?.getValue()??f.content;
-    state.timer=setTimeout(async()=>{const active=current();if(!active||active.name!==targetName)return;const changed=sync(); if(!changed)return;
-      if(isHtmlWorkspace()){updateWeb();event('Updated',`${f.name} changed · live web output refreshed`,'ok');setStatus('Live','ready');return;}
-      if(EXECUTABLE.has(f.language)){event('Running',`${f.name} changed · live execution`);await execute(true,captured);} else if(f.language==='json'){validateJson();} else if(f.language==='yaml'){validateYaml();} else {event('Updated',`${f.name} changed`,'ok');setStatus('Live','ready');}
-    },state.debounce);
-  }
-  async function execute(live=false,capturedCode=null){
-    const f=current();if(!f)return;const code=capturedCode??(sync(),f.content); if(isHtmlWorkspace()){updateWeb();return;}
-    if(f.language==='json'){validateJson();return} if(f.language==='yaml'){validateYaml();return}
-    if(!EXECUTABLE.has(f.language)){event('Info',`${f.language} is editor-only in this runtime`);setStatus('Editor only','ready');renderPanel('output');return}
-    state.running=true;$('runBtn').disabled=true;$('stopBtn').disabled=false;setStatus(live?'Live run…':'Running…','running');state.output=null;renderPanel('output');const controller=new AbortController();state.abort=controller;
-    try{const r=await fetch('/execute/',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code,filename:f.name}),signal:controller.signal});const data=await r.json();if(!r.ok)throw new Error(data.detail||'Execution failed');state.output=data;event(data.ok?'Passed':'Failed',`${f.name} · ${data.duration_ms||0} ms`,data.ok?'ok':'bad');setStatus(data.ok?'Verified':data.runtime_available===false?'Runtime unavailable':'Execution failed',data.ok?'ready':'error');addHistory(data.ok?'Run passed':'Run failed',f.name);renderPanel('output');const line=traceLine(data.stderr);if(line&&state.editor){state.editor.revealLineInCenter(line);state.editor.setPosition({lineNumber:line,column:1});}}
-    catch(e){if(e.name!=='AbortError'){state.output={ok:false,stderr:e.message};event('Error',e.message,'bad');setStatus('Execution failed','error');renderPanel('output')}}
-    finally{state.running=false;$('runBtn').disabled=!current();$('stopBtn').disabled=true;state.abort=null;}
-  }
-  function traceLine(s){const m=String(s||'').match(/(?:line\s+|\.py[":])([0-9]+)/i);return m?Number(m[1]):null;}
-  function validateJson(){const f=current();try{JSON.parse(f.content);state.output={ok:true,stdout:'Valid JSON.\n',stderr:''};event('Valid',`${f.name} · JSON parsed`,'ok');setStatus('Valid JSON','ready')}catch(e){state.output={ok:false,stdout:'',stderr:e.message};event('Invalid',`${f.name} · JSON validation failed`,'bad');setStatus('Invalid JSON','error')}renderPanel('output')}
-  function validateYaml(){const f=current();const bad=/^\s*[^#\n]+:\s*:\s*/m.test(f.content);state.output={ok:!bad,stdout:bad?'':'Basic YAML structure looks valid.\n',stderr:bad?'Possible YAML syntax issue.':''};event(bad?'Review':'Valid',`${f.name} · configuration check`,bad?'bad':'ok');setStatus(bad?'Review YAML':'YAML looks valid',bad?'error':'ready');renderPanel('output')}
-  function diffHtml(before,after){const a=before.split('\n'),b=after.split('\n'),n=Math.max(a.length,b.length);let out='';for(let i=0;i<n;i++){if(a[i]===b[i])out+=`<div class="diff-line">  ${esc(a[i]??'')}</div>`;else{if(a[i]!==undefined)out+=`<div class="diff-line removed">- ${esc(a[i])}</div>`;if(b[i]!==undefined)out+=`<div class="diff-line added">+ ${esc(b[i])}</div>`}}return out}
-  function renderPanel(name){
-    document.querySelectorAll('.panel-tab').forEach(b=>b.classList.toggle('active',b.dataset.panel===name));const out=state.output||{},r=state.analysis||{};let html='';
-    if(name==='output'){
-      if(isHtmlWorkspace()){
-        const events=state.events.length?state.events.map(e=>`<div class="event ${e.kind}"><span>${esc(e.time)}</span><b>${esc(e.type)}</b><span>${esc(e.detail)}</span></div>`).join(''):'<div class="empty-panel">Edit HTML to see live web updates here.</div>';
-        html=`<div class="output-head"><span><i class="live-dot"></i>Live web updates</span><span>${state.events.length} events</span></div>${events}`;
+  function analyzeLocal(){ const f=current();if(!f)return; if(f.language==='json'){try{JSON.parse(f.content);state.analysis={score:100,issues:[],analysis:'Valid JSON.'};}catch(e){state.analysis={score:40,issues:[{severity:'error',message:e.message,type:'JSON',line:null}],analysis:'Invalid JSON.'};}} else state.analysis={score:null,issues:[],analysis:'Live analysis is available through CodeAI.'};renderPanel('analysis'); }
+  function parseProblems(text){ const f=current(); if(!f)return; const m=text.match(/(?:File "([^"]+)", line (\\d+)[^\\n]*\\n)?([^\\n]+)$/m); state.problems=m?[{severity:'error',message:m[3],line:Number(m[2]||0)}]:[]; }
+
+  async function runCodeAI(){
+    const f=current(); if(!f){$('codeAiStatus').textContent='Open a file first';return;}
+    const mode=state.codeAiMode==='custom'?'improve':state.codeAiMode; const instruction=state.codeAiMode==='custom'?$('codeAiPrompt').value.trim():'';
+    if(state.codeAiMode==='custom'&&!instruction){$('codeAiStatus').textContent='Enter the change you want';$('codeAiPrompt').focus();return;}
+    sync(); state.running=true;setStatus('CodeAI','running');$('codeAiStatus').textContent='Analyzing…';event('CodeAI',`${f.name} · ${mode}`);renderPanel('output');
+    try{
+      const r=await fetch('/debug/',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code:f.content,filename:f.name,language:f.language,framework:state.detected?.framework||'',mode,instruction})});
+      const data=await r.json(); if(!r.ok)throw new Error(data.detail||'CodeAI request failed');
+      data.original_code=f.content; state.analysis=data;
+      const newCode=data.fixed_code;
+      const issueCount=(data.issues||[]).length;
+      if(newCode && ['fix','improve','refactor','optimize'].includes(mode) && newCode.trim()!==f.content.trim()){
+        const before=f.content; f.content=newCode;f.dirty=true;state.editor.setValue(newCode);renderTabs();renderTree();
+        addHistory('CodeAI',`${mode} · ${issueCount} issue(s) reported`);event('CodeAI',`${issueCount} issue(s) found · code updated`,'ok');
+        if(isHtmlWorkspace()){updateWeb();event('Rendered',`${f.name} · CodeAI changes visible in web output`,'ok');}
+        else if(EXECUTABLE.has(f.language)){await execute(true);}else analyzeLocal();
       } else {
-        html=`<div class="output-head"><span>${out.ok===true?'✓ Success':out.stderr?'✕ Failed':'Ready'}</span><span>${out.duration_ms?esc(out.duration_ms)+' ms':''}</span></div><pre class="terminal">${esc(out.stdout||out.stderr||'Run or edit the current file to see live output.')}</pre>`;
+        event('CodeAI',data.error||`Analysis complete · ${issueCount} issue(s)` ,data.error?'bad':'ok');
       }
-    }
-    if(name==='problems'){const issues=r.issues||[];html=issues.length?issues.map(i=>`<div class="problem ${esc(i.severity||'warning')}"><span class="sev">${esc((i.severity||'warning').toUpperCase())}</span><div><strong>${esc(i.message||'Issue')}</strong><small>${esc(i.type||'')} ${i.line?'· line '+i.line:''}</small></div></div>`).join(''):'<div class="empty-panel"><div>✓<strong>No reported problems</strong><span>Run or analyze the current file.</span></div></div>';}
-    if(name==='tests')html='<div class="empty-panel"><div>✓<strong>Tests workspace ready</strong><span>Ask AI to generate tests, then run them in the project runtime.</span></div></div>';
-    if(name==='analysis')html=`<div class="analysis"><div class="score">${r.score??'—'}<small>health score</small></div><div><h3>${esc(r.summary?.errors??0)} errors · ${esc(r.summary?.warnings??0)} warnings</h3><p>${esc(r.analysis||'No analysis yet.')}</p></div></div>`;
-    if(name==='diff')html=r.fixed_code?`<div class="diff-toolbar"><span>Proposed changes</span><span class="spacer"></span><button id="rejectDiff">Reject</button><button class="apply" id="applyDiff">Apply</button></div><div class="diff">${diffHtml(current()?.content||'',r.fixed_code)}</div>`:'<div class="empty-panel"><div>↔<strong>No AI changes</strong><span>Ask AI to fix or improve the current file.</span></div></div>';
-    $('panelContent').innerHTML=html;$('problemCount').textContent=(r.issues||[]).length;
+      $('codeAiStatus').textContent=data.error?'Failed':(newCode?'Applied · live result updated':'Analysis complete');
+      renderPanel('analysis');
+    }catch(err){event('CodeAI error',String(err),'bad');$('codeAiStatus').textContent='Failed';setStatus('Error','error');renderPanel('output');}
+    finally{state.running=false;}
   }
-  function addMessage(role,text,klass=''){const el=document.createElement('div');el.className=`msg ${role} ${klass}`;el.innerHTML=`<div class="role">${role==='user'?'You':'BugFalse AI'}</div><div class="bubble">${esc(text)}</div>`;$('chat').appendChild(el);$('chat').scrollTop=$('chat').scrollHeight;return el;}
-  function formatAI(r){let text=r.analysis||r.explanation||r.error||'Analysis complete.';if(r.issues?.length)text+=`\n\n${r.issues.map(i=>`• ${i.severity||'info'}: ${i.message}${i.line?' (line '+i.line+')':''}`).join('\n')}`;if(r.improvements?.length)text+=`\n\nImprovements:\n${r.improvements.map(x=>'• '+x).join('\n')}`;return text;}
-  async function ai(mode=state.aiMode,question=''){const f=current();if(!f){addMessage('ai','Open a file first so I can work with real code.');return}state.aiMode=mode;document.querySelectorAll('.ai-modes button').forEach(b=>b.classList.toggle('active',b.dataset.mode===mode));const q=question||({analyze:'Analyze this file for important bugs, risks and improvements.',fix:'Find the important bugs and propose a safe fix.',improve:'Improve this code while preserving its behavior.'}[mode]||'Help me with this code.');addMessage('user',q);const typing=addMessage('ai','Working…','typing');try{const r=await fetch('/debug/',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code:f.content,filename:f.name,language:f.language,framework:state.detected?.framework||null,mode})});const data=await r.json();typing.remove();if(!r.ok)throw new Error(data.detail||'AI request failed');state.analysis=data;addMessage('ai',formatAI(data));if(data.fixed_code){renderPanel('diff');addHistory('AI proposal',`${mode} · ${f.name}`)}else renderPanel('analysis');setStatus('AI ready','ready')}catch(e){typing.remove();addMessage('ai',`AI request failed: ${e.message}`);setStatus('AI error','error')}}
-  function applyAI(){const f=current();if(!f||!state.analysis?.fixed_code)return;f.content=state.analysis.fixed_code;f.dirty=f.content!==f.original;state.editor.setValue(f.content);renderTabs();renderTree();event('AI applied',`${f.name} · current workspace updated`,'ok');setStatus('AI changes applied','ready');if(isHtmlWorkspace()){updateWeb();scheduleLive()}else if(EXECUTABLE.has(f.language))setTimeout(()=>execute(true),200);renderPanel('diff');}
-  function downloadCurrent(){const f=current();if(!f)return;const blob=new Blob([f.content],{type:'text/plain;charset=utf-8'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=f.name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),500);}
-  async function downloadProject(){if(state.files.size<2){downloadCurrent();return}const zip=new JSZip();state.files.forEach(f=>zip.file(f.name,f.content));const blob=await zip.generateAsync({type:'blob'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='bugfalse-project.zip';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),500);}
-  function createFile(name='untitled.txt'){name=name.trim()||'untitled.txt';if(!name.includes('.'))name+='.txt';if(state.files.has(name)){let i=2,base=name.replace(/(\.[^.]+)$/,'');const ext=(name.match(/\.[^.]+$/)||['.txt'])[0];while(state.files.has(`${base}-${i}${ext}`))i++;name=`${base}-${i}${ext}`;}openFile(name,'');addHistory('Created file',name);}
-  function renameCurrent(name){const f=current();if(!f)return;name=name.trim();if(!name)return;if(!name.includes('.'))name+='.txt';if(name===f.name)return;if(state.files.has(name)){alert('A file with that name already exists.');return}state.files.delete(f.name);f.name=name;f.language=lang(name);state.files.set(name,f);state.active=name;setEditorLanguage();renderTabs();renderTree();updateContext();detect();updateWorkspaceMode();event('Renamed',name,'ok');}
-  function saveCurrent(){const f=current();if(!f)return;sync();f.original=f.content;f.dirty=false;renderTabs();renderTree();event('Saved',f.name,'ok');setStatus('Saved','ready');}
-  function showFileMenu(show=true){$('fileMenu').classList.toggle('hidden',!show);}
-  function openTreeMenu(name){const f=state.files.get(name);if(!f)return;const action=prompt(`File: ${name}\nType an action: rename, download, delete`, '');if(action==='rename'){ $('renameFileName').value=name;$('renameModal').classList.remove('hidden');$('renameFileName').focus(); } else if(action==='download'){activateFile(name);downloadCurrent()} else if(action==='delete'){closeFile(name);}}
-  function initMonaco(){require.config({paths:{vs:'https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs'}});require(['vs/editor/editor.main'],()=>{state.monaco=monaco;state.editor=monaco.editor.create($('monaco'),{value:'',language:'plaintext',theme:'vs-dark',automaticLayout:true,fontSize:14,lineHeight:22,fontFamily:'JetBrains Mono,SFMono-Regular,Consolas,monospace',minimap:{enabled:true},padding:{top:14,bottom:14},scrollBeyondLastLine:false,smoothScrolling:true,wordWrap:'off'});state.editor.onDidChangeModelContent(()=>{if(!state.active)return;sync();scheduleLive()});state.editor.onDidChangeCursorPosition(()=>{const p=state.editor.getPosition();$('cursor').textContent=`Ln ${p.lineNumber}, Col ${p.column}`});});}
+  function setCodeAiMode(mode){state.codeAiMode=mode;document.querySelectorAll('[data-codeai-mode]').forEach(b=>b.classList.toggle('active',b.dataset.codeaiMode===mode));$('codeAiPrompt').classList.toggle('hidden',mode!=='custom');$('runCodeAi').textContent=mode==='custom'?'Apply':'Run';$('codeAiStatus').textContent=mode==='custom'?'Waiting for your instruction':'Ready';}
 
-  function initWebSplitter(){
-    const stage=$('editorStage'), divider=$('workspaceDivider');
-    if(!stage||!divider)return;
-    let dragging=false;
-    const move=e=>{
-      if(!dragging || !isHtmlWorkspace()) return;
-      const rect=stage.getBoundingClientRect();
-      const min=280, max=rect.width-360;
-      const x=Math.max(min,Math.min(max,e.clientX-rect.left));
-      const pct=(x/rect.width)*100;
-      $('editorStage').style.setProperty('--editor-width',pct+'%');
-      stage.querySelector('.editor-pane').style.flexBasis=pct+'%';
-      stage.querySelector('.editor-pane').style.width=pct+'%';
-      state.editor?.layout();
-    };
-    const up=()=>{if(!dragging)return;dragging=false;divider.classList.remove('dragging');document.body.style.cursor='';};
-    divider.addEventListener('pointerdown',e=>{dragging=true;divider.classList.add('dragging');document.body.style.cursor='col-resize';divider.setPointerCapture?.(e.pointerId);});
-    divider.addEventListener('pointermove',move);
-    divider.addEventListener('pointerup',up);
-    divider.addEventListener('pointercancel',up);
+  function renderPanel(panel){
+    document.querySelectorAll('.panel-tab').forEach(b=>b.classList.toggle('active',b.dataset.panel===panel));
+    const c=$('panelContent');
+    if(panel==='output'){c.innerHTML=state.events.length?state.events.map(e=>`<div class="event ${e.kind}"><span>${esc(e.time)}</span><b>${esc(e.type)}</b><span>${esc(e.detail)}</span></div>`).join(''):'<div class="empty-panel">No live output yet.</div>';return;}
+    if(panel==='problems'){const ps=state.problems||[];c.innerHTML=ps.length?ps.map(p=>`<div class="problem error"><span class="sev">ERROR</span><div><strong>${esc(p.message)}</strong><small>${p.line?`Line ${p.line}`:''}</small></div></div>`).join(''):'<div class="empty-panel">No problems detected.</div>';return;}
+    if(panel==='tests'){c.innerHTML='<div class="empty-panel">Tests will appear here when a test runner is available.</div>';return;}
+    if(panel==='diff'){if(!state.analysis?.fixed_code){c.innerHTML='<div class="empty-panel">CodeAI changes will appear here after a code modification.</div>';return;}const before=state.analysis.original_code||'';const after=state.analysis.fixed_code; c.innerHTML=`<div class="diff-toolbar"><span>CodeAI proposed/applied changes</span></div><div class="diff"><div class="diff-line removed">− Previous version</div><div class="diff-line added">+ Updated version (${after.split('\\n').length} lines)</div></div>`;return;}
+    if(panel==='analysis'){const a=state.analysis;if(!a){c.innerHTML='<div class="empty-panel">No analysis yet.</div>';return;}c.innerHTML=`<div class="analysis"><div class="score">${a.score??'—'}<small>health score</small></div><div><h3>${(a.issues||[]).length} issue(s)</h3><p>${esc(a.analysis||a.summary||'No additional analysis.')}</p></div></div>`;return;}
   }
 
-  function refreshLayout(){
-    requestAnimationFrame(()=>{
-      state.editor?.layout();
-      if(isHtmlWorkspace()) updateWeb();
-    });
-  }
-
-  function setSidebarCollapsed(collapsed){
-    $('app').classList.toggle('sidebar-collapsed',collapsed);
-    $('sidebarToggle').setAttribute('aria-label',collapsed?'Open Explorer':'Collapse Explorer');
-    $('sidebarToggle').title=collapsed?'Open Explorer':'Collapse Explorer';
-    $('sidebarToggle').textContent=collapsed?'☰':'☰';
-    localStorage.setItem('bugfalse-sidebar-collapsed',collapsed?'1':'0');
-    refreshLayout();
-  }
-
-  function setBottomCollapsed(collapsed){
-    $('bottomToggle').closest('.bottom-panel').classList.toggle('collapsed',collapsed);
-    $('bottomToggle').textContent=collapsed?'⌃':'⌄';
-    $('bottomToggle').title=collapsed?'Expand output panel':'Collapse output panel';
-    $('bottomToggle').setAttribute('aria-label',collapsed?'Expand output panel':'Collapse output panel');
-    localStorage.setItem('bugfalse-bottom-collapsed',collapsed?'1':'0');
-    refreshLayout();
-  }
-
+  function initMonaco(){ require.config({paths:{vs:'https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs'}}); require(['vs/editor/editor.main'],()=>{state.monaco=monaco;state.editor=monaco.editor.create($('monaco'),{value:'',language:'plaintext',theme:'vs-dark',automaticLayout:true,fontSize:14,lineHeight:22,fontFamily:'JetBrains Mono,SFMono-Regular,Consolas,monospace',minimap:{enabled:true},padding:{top:10,bottom:10},scrollBeyondLastLine:false,smoothScrolling:true,wordWrap:'off'});state.editor.onDidChangeModelContent(()=>{if(!state.active)return;sync();scheduleLive();});state.editor.onDidChangeCursorPosition(()=>{const p=state.editor.getPosition();$('cursor').textContent=`Ln ${p.lineNumber}, Col ${p.column}`;});}); }
+  function initWebSplitter(){const stage=$('editorStage'),divider=$('workspaceDivider');if(!stage||!divider)return;let dragging=false;const move=e=>{if(!dragging||!isHtmlWorkspace())return;const r=stage.getBoundingClientRect(),min=280,max=r.width-420,x=Math.max(min,Math.min(max,e.clientX-r.left)),pct=x/r.width*100;stage.querySelector('.editor-pane').style.flexBasis=pct+'%';stage.querySelector('.web-pane').style.flexBasis=(100-pct)+'%';state.editor?.layout();};const up=()=>{dragging=false;divider.classList.remove('dragging');document.body.style.cursor='';};divider.addEventListener('pointerdown',e=>{dragging=true;divider.classList.add('dragging');document.body.style.cursor='col-resize';});divider.addEventListener('pointermove',move);divider.addEventListener('pointerup',up);divider.addEventListener('pointercancel',up);}
+  function refreshLayout(){requestAnimationFrame(()=>state.editor?.layout());}
+  function setSidebarCollapsed(c){$('app').classList.toggle('sidebar-collapsed',c);localStorage.setItem('bugfalse-sidebar-collapsed',c?'1':'0');refreshLayout();}
+  function setBottomCollapsed(c){$('bottomToggle').closest('.bottom-panel').classList.toggle('collapsed',c);$('bottomToggle').textContent=c?'⌃':'⌄';localStorage.setItem('bugfalse-bottom-collapsed',c?'1':'0');refreshLayout();}
+  function showFileMenu(show){$('fileMenu').classList.toggle('hidden',!show);}
   function init(){
-    initMonaco(); renderPanel('output'); renderTree();
-    setSidebarCollapsed(localStorage.getItem('bugfalse-sidebar-collapsed')==='1');
-    setBottomCollapsed(localStorage.getItem('bugfalse-bottom-collapsed')==='1');
+    initMonaco();renderPanel('output');renderTree();setSidebarCollapsed(localStorage.getItem('bugfalse-sidebar-collapsed')==='1');setBottomCollapsed(localStorage.getItem('bugfalse-bottom-collapsed')==='1');
     $('fileMenuBtn').onclick=e=>{e.stopPropagation();showFileMenu($('fileMenu').classList.contains('hidden'));};
     document.addEventListener('click',e=>{if(!e.target.closest('.file-menu')&&!e.target.closest('#fileMenuBtn'))showFileMenu(false);});
     document.querySelectorAll('[data-file-action]').forEach(b=>b.onclick=()=>{const a=b.dataset.fileAction;showFileMenu(false);if(a==='new'){$('newFileName').value='untitled.txt';$('newFileModal').classList.remove('hidden');$('newFileName').focus();}if(a==='open')$('fileInput').click();if(a==='folder')$('folderInput').click();if(a==='rename'){const f=current();if(f){$('renameFileName').value=f.name;$('renameModal').classList.remove('hidden');$('renameFileName').focus();}}if(a==='save')saveCurrent();if(a==='download')state.files.size>1?downloadProject():downloadCurrent();if(a==='delete'&&current())closeFile(current().name);});
-    $('openBtn').onclick=()=>$('fileInput').click();$('emptyOpen').onclick=()=>$('fileInput').click();$('emptyNew').onclick=()=>{$('newFileName').value='untitled.txt';$('newFileModal').classList.remove('hidden');$('newFileName').focus()};$('newFileBtn').onclick=()=>$('emptyNew').click();
+    $('emptyOpen').onclick=()=>$('fileInput').click();$('emptyNew').onclick=()=>{$('newFileName').value='untitled.txt';$('newFileModal').classList.remove('hidden');$('newFileName').focus()};$('newFileBtn').onclick=()=>$('emptyNew').click();
     $('fileInput').onchange=e=>{openFiles(e.target.files);e.target.value=''};$('folderInput').onchange=e=>{openFiles(e.target.files);e.target.value=''};
-    $('sampleBtn')?.addEventListener('click',()=>openFile('main.py',sample)); $('downloadBtn').onclick=()=>state.files.size>1?downloadProject():downloadCurrent(); $('runBtn').onclick=()=>execute(false); $('stopBtn').onclick=()=>state.abort?.abort();
-    $('liveToggle').onchange=()=>{if($('liveToggle').checked)scheduleLive()};$('debounceSelect').onchange=e=>state.debounce=Number(e.target.value);$('minimapToggle').onchange=e=>state.editor?.updateOptions({minimap:{enabled:e.target.checked}});
-    $('settingsBtn').onclick=()=>$('settingsModal').classList.remove('hidden');$('themeBtn').onclick=()=>{state.theme=state.theme==='dark'?'light':'dark';document.body.classList.toggle('light',state.theme==='light');if(state.editor)state.monaco.editor.setTheme(state.theme==='light'?'vs':'vs-dark')};
-    $('sidebarToggle').onclick=()=>setSidebarCollapsed(!$('app').classList.contains('sidebar-collapsed'));
-    $('bottomToggle').onclick=()=>setBottomCollapsed(!$('bottomToggle').closest('.bottom-panel').classList.contains('collapsed'));
-    $('closeAi').onclick=()=>{$('aiPanel').classList.add('collapsed');$('reopenAi').classList.remove('hidden')};$('reopenAi').onclick=()=>{$('aiPanel').classList.remove('collapsed');$('reopenAi').classList.add('hidden')};
-    document.querySelectorAll('.ai-modes button').forEach(b=>b.onclick=()=>ai(b.dataset.mode));document.querySelectorAll('.quick button').forEach(b=>b.onclick=()=>ai('analyze',b.dataset.question));$('sendAi').onclick=()=>{const q=$('aiInput').value.trim();if(!q)return;$('aiInput').value='';const mode=/improv/i.test(q)?'improve':/fix|bug|error|fail/i.test(q)?'fix':'analyze';ai(mode,q)};$('aiInput').onkeydown=e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();$('sendAi').click()}};
+    $('downloadBtn').onclick=()=>state.files.size>1?downloadProject():downloadCurrent();$('runBtn').onclick=()=>execute(false);$('liveToggle').onchange=()=>{if($('liveToggle').checked)scheduleLive()};
+    $('debounceSelect').onchange=e=>state.debounce=Number(e.target.value);$('minimapToggle').onchange=e=>state.editor?.updateOptions({minimap:{enabled:e.target.checked}});$('settingsBtn').onclick=()=>$('settingsModal').classList.remove('hidden');$('themeBtn').onclick=()=>{state.theme=state.theme==='dark'?'light':'dark';document.body.classList.toggle('light',state.theme==='light');state.editor&&state.monaco.editor.setTheme(state.theme==='light'?'vs':'vs-dark');};$('sidebarToggle').onclick=()=>setSidebarCollapsed(!$('app').classList.contains('sidebar-collapsed'));$('bottomToggle').onclick=()=>setBottomCollapsed(!$('bottomToggle').closest('.bottom-panel').classList.contains('collapsed'));
+    $('codeAiToggle').onclick=e=>{e.stopPropagation();$('codeAiPopover').classList.toggle('hidden');};$('closeCodeAi').onclick=()=>$('codeAiPopover').classList.add('hidden');document.querySelectorAll('[data-codeai-mode]').forEach(b=>b.onclick=()=>setCodeAiMode(b.dataset.codeaiMode));$('runCodeAi').onclick=runCodeAI;
+    document.querySelectorAll('.panel-tab').forEach(b=>b.onclick=()=>renderPanel(b.dataset.panel));document.querySelectorAll('[data-viewport]').forEach(b=>b.onclick=()=>{state.viewport=b.dataset.viewport;document.querySelectorAll('[data-viewport]').forEach(x=>x.classList.toggle('active',x===b));const f=$('previewFrame');f.classList.remove('vp-tablet','vp-mobile');if(state.viewport==='tablet')f.classList.add('vp-tablet');if(state.viewport==='mobile')f.classList.add('vp-mobile');});
+    $('webRefresh').onclick=()=>{if(isHtmlWorkspace()){updateWeb();event('Refresh','Live web output refreshed','ok')}};initWebSplitter();new ResizeObserver(()=>state.editor?.layout()).observe($('editorStage'));
+    $('previewFrame').addEventListener('load',()=>{if(isHtmlWorkspace()){event('Rendered',`${current().name} · browser output ready`,'ok');setStatus('Live','ready')}});window.addEventListener('message',e=>{if(e.data?.source!=='bugfalse-web')return;const type=e.data.type||'log',text=(e.data.args||[]).join(' ');event(type.toUpperCase(),text,type==='error'?'bad':'');});
+    document.addEventListener('click',e=>{const tab=e.target.closest('[data-file]');if(tab&&!e.target.closest('[data-close-file]'))activateFile(tab.dataset.file);const close=e.target.closest('[data-close-file]');if(close){e.stopPropagation();closeFile(close.dataset.closeFile);}const tree=e.target.closest('[data-tree-file]');if(tree&&!e.target.closest('[data-tree-menu]'))activateFile(tree.dataset.treeFile);const more=e.target.closest('[data-tree-menu]');if(more){e.stopPropagation();const name=more.dataset.treeMenu;const action=prompt(`File: ${name}\nType rename, delete, or cancel`,'cancel');if(action==='rename'){state.active=name;$('renameFileName').value=name;$('renameModal').classList.remove('hidden');}if(action==='delete')closeFile(name);}const closeModal=e.target.closest('[data-close]');if(closeModal)$(closeModal.dataset.close)?.classList.add('hidden');});
+    window.addEventListener('dragover',e=>e.preventDefault());window.addEventListener('drop',e=>{e.preventDefault();if(e.dataTransfer.files.length)openFiles(e.dataTransfer.files);});
+    document.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key==='s'){e.preventDefault();saveCurrent();}if((e.ctrlKey||e.metaKey)&&e.key==='o'){e.preventDefault();$('fileInput').click();}if(e.key==='Escape'){showFileMenu(false);$('codeAiPopover').classList.add('hidden');document.querySelectorAll('.modal:not(.hidden)').forEach(m=>m.classList.add('hidden'));}});
     $('createFileConfirm').onclick=()=>{$('newFileModal').classList.add('hidden');createFile($('newFileName').value)};$('newFileName').onkeydown=e=>{if(e.key==='Enter')$('createFileConfirm').click()};$('renameFileConfirm').onclick=()=>{$('renameModal').classList.add('hidden');renameCurrent($('renameFileName').value)};$('renameFileName').onkeydown=e=>{if(e.key==='Enter')$('renameFileConfirm').click()};
-    document.querySelectorAll('.panel-tab').forEach(b=>b.onclick=()=>renderPanel(b.dataset.panel));
-    document.querySelectorAll('.inspect-tab').forEach(b=>b.onclick=()=>renderInspect(b.dataset.inspect));
-    document.querySelectorAll('[data-viewport]').forEach(b=>b.onclick=()=>{state.viewport=b.dataset.viewport;document.querySelectorAll('[data-viewport]').forEach(x=>x.classList.toggle('active',x===b));const f=$('previewFrame');f.classList.remove('vp-tablet','vp-mobile');if(state.viewport==='tablet')f.classList.add('vp-tablet');if(state.viewport==='mobile')f.classList.add('vp-mobile');});
-    $('webRefresh').onclick=()=>{if(isHtmlWorkspace()){updateWeb();event('Refresh','Live web output refreshed','ok')}};
-    initWebSplitter();
-    const layoutObserver=new ResizeObserver(()=>state.editor?.layout());
-    layoutObserver.observe($('editorStage'));
-    $('previewFrame').addEventListener('load',()=>{if(isHtmlWorkspace()){event('Rendered',`${current().name} · browser output ready`,'ok');setStatus('Live','ready')}});
-    window.addEventListener('message',e=>{if(e.data?.source!=='bugfalse-web')return;const type=e.data.type||'log';const text=(e.data.args||[]).join(' ');state.webConsole.unshift({time:new Date().toLocaleTimeString(),type,text});state.webConsole=state.webConsole.slice(0,100);renderInspect('console');event(type.toUpperCase(),text,type==='error'?'bad':'');});
-    document.addEventListener('click',e=>{const tab=e.target.closest('[data-file]');if(tab&&!e.target.closest('[data-close-file]'))activateFile(tab.dataset.file);const close=e.target.closest('[data-close-file]');if(close){e.stopPropagation();closeFile(close.dataset.closeFile)}const tree=e.target.closest('[data-tree-file]');if(tree&&!e.target.closest('[data-tree-menu]'))activateFile(tree.dataset.treeFile);const more=e.target.closest('[data-tree-menu]');if(more){e.stopPropagation();openTreeMenu(more.dataset.treeMenu)}if(e.target.id==='applyDiff')applyAI();if(e.target.id==='rejectDiff'){state.analysis={...state.analysis,fixed_code:null};renderPanel('diff')}const closeModal=e.target.closest('[data-close]');if(closeModal)$(closeModal.dataset.close)?.classList.add('hidden')});
-    window.addEventListener('dragover',e=>e.preventDefault());window.addEventListener('drop',e=>{e.preventDefault();if(e.dataTransfer.files.length)openFiles(e.dataTransfer.files)});
-    document.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key==='Enter'){e.preventDefault();execute(false)}if((e.ctrlKey||e.metaKey)&&e.key==='s'){e.preventDefault();saveCurrent()}if((e.ctrlKey||e.metaKey)&&e.key==='o'){e.preventDefault();$('fileInput').click()}if(e.key==='Escape'){showFileMenu(false);document.querySelectorAll('.modal:not(.hidden)').forEach(m=>m.classList.add('hidden'))}});
   }
   init();
 })();

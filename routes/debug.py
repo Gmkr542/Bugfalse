@@ -14,6 +14,7 @@ class DebugRequest(BaseModel):
     api_key: Optional[str] = None
     key: Optional[str] = None
     mode: str = "analyze"
+    instruction: Optional[str] = None
 
 
 
@@ -58,7 +59,7 @@ async def debug(payload: DebugRequest):
         else:
             result = groq_service.analyze_code(
                 payload.code, api_key, mode=mode, filename=payload.filename,
-                language=payload.language, framework=payload.framework,
+                language=payload.language, framework=payload.framework, instruction=payload.instruction,
             )
     except Exception as exc:
         raise HTTPException(status_code=500, detail=safe_json_text(f"Server error: {exc}"))
