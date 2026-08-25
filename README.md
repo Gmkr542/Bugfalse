@@ -1,169 +1,86 @@
-# BugFalse — AI Engineering Workspace
+# BugFalse
 
-BugFalse is a developer workspace for **editing, running, understanding, debugging, improving and downloading code** with AI.
+BugFalse is a focused browser-based coding workspace with a clean editor, live execution/output, a specialized live web workspace, and CodeAI for direct code changes.
 
-## What is included
+## Product principles
 
-- Professional Monaco editor
-- Large, distraction-free coding area
-- Multi-file workspace and drag/drop import
-- Language-aware workspace behavior
-- HTML/CSS/JS/TS live browser preview beside the editor
-- Live preview changes tracked in Output
-- Python, JavaScript, TypeScript, Java, C, C++, Go, Rust, PHP and Ruby execution when runtimes are installed
-- JSON/YAML validation
-- AI Analyze / Fix / Improve workflow
-- AI proposal and reviewable diff before applying changes
-- Automatic validation after AI changes
-- Clickable problem-to-line workflow
-- Project ZIP download
-- Current-file download
-- File history in the client workspace
-- Professional AI chat with current-file context
-- Theme and editor settings
-- FastAPI backend with health/status endpoints
-- Docker deployment image containing the main execution runtimes
+- Editor first: most of the viewport belongs to code or the live web result.
+- Minimal UI: secondary operations live in File, Explorer, or contextual controls.
+- CodeAI is a tool, not a chat application: Fix, Improve, or a user-directed Change operate on the current file.
+- Web files use a live side-by-side browser workspace instead of server-side execution.
+- Live Output records meaningful execution, validation, CodeAI, and web-render events.
 
-## Core workflow
+## Main workflows
 
-```text
-Open / drop code
-      ↓
-Edit manually
-      ↓
-Live feedback
-      ↓
-Run / preview
-      ↓
-Analyze with AI
-      ↓
-Fix / improve
-      ↓
-Review diff
-      ↓
-Apply
-      ↓
-Verify
-      ↓
-Download
-```
+### Files
+
+`File` provides New File, Open File, Open Folder, Save, Rename, Download, and Delete. New files default to `untitled.txt`. Files can also be dragged into the workspace.
+
+### Normal code
+
+For executable languages, edit the current file, use Run or `Ctrl/Cmd+Enter`, and inspect Live Output and Problems. Live execution is debounced and newer editor revisions cannot be overwritten by stale execution responses.
+
+### Web development
+
+When an HTML file is active (or a web file is opened in a project containing HTML), BugFalse switches to a side-by-side editor/web workspace. HTML, CSS, and JavaScript are assembled into an isolated iframe. Changes refresh automatically and are recorded in Live Output. Console/error messages from the preview are forwarded to Live Output and Problems.
+
+### CodeAI
+
+The single `CodeAI` control offers:
+
+- **Fix** — repair likely problems using current code and diagnostics.
+- **Improve** — improve the current code while preserving intended behavior.
+- **Change…** — wait for a specific user instruction, then apply the requested change.
+
+AI changes are written into the editor and immediately validated/rendered. No AI chat UI is required.
+
+## Supported language detection
+
+Python, JavaScript, TypeScript, Java, C, C++, C#, Go, Rust, PHP, Ruby, Swift, Kotlin, HTML, CSS, JSON, SQL, Markdown, YAML, and plain text are recognized. Runtime availability is detected separately from editor support.
+
+## Backend
+
+FastAPI routes live in `routes/` and runtime/AI behavior is separated into services where appropriate.
+
+Important endpoints:
+
+- `GET /health`
+- `GET /status`
+- `GET /runtime/catalog`
+- `POST /runtime/detect`
+- `POST /execute/`
+- `POST /debug/`
+
+The legacy chatbot API remains available for backward compatibility, but the main workspace does not expose an AI chat interface.
+
+## Environment
+
+Set `GROQ_TOKEN` or `GROQ_API_KEY` for CodeAI. Never commit API keys.
+
+Optional:
+
+- `GROQ_MODEL`
+- `GROQ_URL`
+- `GROQ_VERIFY_SSL`
+- `LOG_LEVEL`
 
 ## Local development
 
 ```bash
-python -m venv .venv
-# Windows
-.venv\Scripts\activate
-# macOS/Linux
-source .venv/bin/activate
-
 pip install -r requirements.txt
 uvicorn app:app --reload
 ```
 
 Open `http://localhost:8000`.
 
-Set `GROQ_TOKEN` before using AI:
+## Tests
 
 ```bash
-GROQ_TOKEN=your_key_here
+pytest -q
 ```
 
-## Render deployment
+The suite covers health, debug normalization, chatbot API compatibility, runtime detection, and Python execution.
 
-The repository includes a `Dockerfile` and `render.yaml`. Render can build the Docker image and run the FastAPI application with the configured `PORT`.
+## Deployment
 
-The Docker image includes:
-
-- Python
-- Node.js / npm
-- TypeScript runner (`tsx`)
-- GCC / G++
-- Java 17
-- Go
-- Rust
-- PHP
-- Ruby
-
-Add `GROQ_TOKEN` as a **secret environment variable** in Render. Never commit an API key.
-
-## Important execution security note
-
-The execution service applies strict size, timeout and output limits and runs each job in a temporary directory. It is suitable for controlled development use, but arbitrary public code execution should ultimately move to a dedicated isolated sandbox service/container per job (for example Firecracker or a hardened container worker) before offering untrusted multi-tenant execution at scale.
-
-## AI behavior
-
-AI changes are never silently applied. BugFalse shows a proposed full-file change in the AI Diff panel. The developer can reject or apply it. After applying, web projects refresh their live preview and executable projects can be verified automatically.
-
-## Project structure
-
-```text
-BugFalse/
-├── app.py
-├── config.py
-├── Dockerfile
-├── render.yaml
-├── requirements.txt
-├── routes/
-│   ├── debug.py
-│   ├── execute.py
-│   ├── runtime.py
-│   └── chatbot.py
-├── services/
-│   ├── groq_service.py
-│   ├── gemini_service.py
-│   └── llama_service.py
-├── static/
-│   ├── css/styles.css
-│   └── js/app.js
-├── templates/
-│   └── index.html
-├── tests/
-└── utils/
-```
-
-## Verification
-
-The repository is verified with the existing test suite before release.
-
-## Workspace model
-
-BugFalse separates three concerns:
-
-- **File management** — the `File` header menu and Explorer handle create/open/folder/rename/save/download/delete.
-- **Code editing** — Monaco remains the clean primary editing surface.
-- **Language workspace** — contextual tools appear around the editor only when useful.
-
-### HTML web workspace
-
-When an HTML file is active, BugFalse switches to a web-development workspace automatically. The editor occupies the left side and a larger browser-style live output occupies the right. The live output includes a small Console/Elements inspection area. HTML changes are debounced, rendered automatically, and recorded in Live Output. CSS and JavaScript files in the local workspace are included in the HTML document when possible.
-
-Other languages keep the normal editor + output workflow. HTML is intentionally the trigger for the web workspace so the interface does not become a browser-inspector layout for unrelated files.
-
-## File controls
-
-Use **File** in the top header for New File, Open File, Open Folder, Rename, Save, Download, and Delete. New files default to `untitled.txt`; renaming a file changes the detected language and workspace behavior.
-
-## Workspace layout refinement
-
-The UI prioritizes the coding surface. Explorer, AI, and output panels are secondary and can be collapsed so the editor/web workspace expands to use the freed viewport. In HTML/web mode, the editor and live web output remain side-by-side with a draggable divider; the rendered site receives the larger share of the workspace by default.
-
-- Explorer: collapsible from the top bar.
-- Output/Problems/Tests: collapsible from the panel header.
-- AI: opens as an overlay/drawer so it does not permanently shrink the coding surface.
-- HTML/web mode: editor + live browser output, with a draggable split and responsive fallback.
-- The layout is responsive and reflows on smaller screens.
-
-## Workspace UI simplification
-
-The current workspace intentionally keeps the editor dominant and removes redundant controls:
-
-- File management lives under the single **File** menu.
-- The top bar contains only contextual actions: Run (when applicable), Live, CodeAI, theme, and settings.
-- The old secondary toolbar and language card are removed.
-- The Explorer is intentionally narrow and can be toggled with **Ctrl/Cmd+B**.
-- HTML/CSS web work uses a large side-by-side live output area with a draggable divider.
-- The bottom area is limited to **Live Output** and **Problems**.
-- Web Console/Elements controls are not exposed as separate panels.
-- Empty workspaces do not reserve space for output panels.
-- CodeAI remains a focused editor tool rather than a persistent chat interface.
+`Dockerfile`, `Procfile`, and `render.yaml` are included. For public arbitrary-code execution, use stronger isolation than a single shared application process (container-per-job or another sandbox boundary with CPU, memory, process, filesystem, network, timeout, and output limits).

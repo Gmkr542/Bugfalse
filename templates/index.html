@@ -3,103 +3,110 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="description" content="BugFalse — a focused AI engineering workspace.">
+  <meta name="description" content="BugFalse — focused AI engineering workspace.">
   <title>BugFalse — AI Engineering</title>
-  <link rel="stylesheet" href="/static/css/styles.css?v=20260825-clean">
+  <link rel="stylesheet" href="/static/css/styles.css?v=20260825-audit1">
 </head>
 <body>
 <div class="app" id="app">
   <header class="topbar">
-    <div class="brand"><span class="brand-mark">B</span><span>BugFalse</span><span class="brand-sub">AI ENGINEERING</span></div>
-    <button class="header-file" id="fileMenuBtn">File <span>⌄</span></button>
-    <div class="workspace-name" id="workspaceName">Untitled workspace</div>
-    <div class="header-context" id="headerContext">
-      <span class="language-icon" id="languageIcon">TXT</span>
-      <strong id="languageTitle">Text</strong><span id="frameworkText"></span>
-      <span class="runtime" id="runtimePill">No file</span>
-      <span class="language-state" id="languageState">Ready</span>
-    </div>
-    <div class="top-actions">
-      <button class="top-run hidden" id="runBtn" disabled>Run</button>
-      <label class="live-control" title="Live updates"><input type="checkbox" id="liveToggle" checked><span></span><em>Live</em></label>
-      <button class="top-btn codeai-toggle" id="codeAiToggle" title="CodeAI">CodeAI</button>
-      <button class="top-btn" id="themeBtn" title="Theme">☼</button>
-      <button class="top-btn" id="settingsBtn" title="Settings">⚙</button>
-    </div>
-    <div class="file-menu hidden" id="fileMenu">
-      <button data-file-action="new">New File</button>
-      <button data-file-action="open">Open File</button>
+    <div class="brand"><span class="brand-mark">B</span><strong>BugFalse</strong></div>
+    <button class="file-button" id="fileMenuBtn" type="button">File <span>⌄</span></button>
+    <div class="active-name" id="workspaceName">No file</div>
+    <div class="top-spacer"></div>
+    <button class="context-action hidden" id="runBtn" type="button">Run</button>
+    <button class="codeai-button" id="codeAiToggle" type="button">CodeAI</button>
+    <button class="icon-button" id="themeBtn" type="button" title="Toggle theme" aria-label="Toggle theme">☼</button>
+    <button class="icon-button" id="settingsBtn" type="button" title="Settings" aria-label="Settings">⚙</button>
+    <div class="file-menu hidden" id="fileMenu" role="menu">
+      <button type="button" data-file-action="new">New File</button>
+      <button type="button" data-file-action="open">Open File</button>
+      <button type="button" data-file-action="folder">Open Folder</button>
       <div class="menu-separator"></div>
-      <button data-file-action="save">Save</button>
-      <button data-file-action="rename">Rename</button>
-      <button data-file-action="download">Download</button>
-      <button data-file-action="delete" class="danger">Delete</button>
+      <button type="button" data-file-action="save">Save</button>
+      <button type="button" data-file-action="rename">Rename</button>
+      <button type="button" data-file-action="download">Download</button>
+      <button type="button" data-file-action="delete" class="danger">Delete</button>
     </div>
   </header>
+
   <div class="body">
     <aside class="sidebar" id="sidebar">
-      <div class="explorer">
-        <div class="explorer-head"><span>FILES</span><button id="newFileBtn" title="New file">+</button></div>
-        <div id="fileTree" class="file-tree"><div class="tree-empty">No files</div></div>
-      </div>
+      <div class="explorer-head"><span>FILES</span><button id="newFileBtn" type="button" title="New file">+</button></div>
+      <div id="fileTree" class="file-tree"><div class="tree-empty">No files</div></div>
     </aside>
 
     <main class="main">
       <div class="tabs" id="fileTabs"></div>
       <div class="editor-stage" id="editorStage">
-        <section class="editor-pane">
+        <section class="editor-pane" id="editorPane">
           <div class="empty-state" id="emptyState">
             <div class="empty-mark">B</div>
-            <h1>Build with BugFalse</h1>
-            <p>Open a file or create one. The editor stays focused on your code; tools appear around it only when useful.</p>
-            <div class="drop-note">Use File to open or create a file · drag files here to import.</div>
+            <h1>Start coding</h1>
+            <p>Create a file or open an existing one.</p>
+            <div class="drop-note">Files can also be dragged into BugFalse.</div>
           </div>
           <div id="monaco" class="monaco"></div>
         </section>
-
-        <div class="workspace-divider" id="workspaceDivider" aria-label="Resize editor and web output"></div>
+        <div class="workspace-divider hidden" id="workspaceDivider" aria-label="Resize editor and web output"></div>
         <section class="web-pane hidden" id="webPane">
           <div class="browser-bar">
-            <div class="browser-dots"><i></i><i></i><i></i></div>
-            <button id="webRefresh" title="Refresh">↻</button>
-            <div class="address">bugfalse.local / <span id="webPath">index.html</span></div>
-            <div class="viewport-tools"><button data-viewport="desktop" class="active">Desktop</button><button data-viewport="tablet">Tablet</button><button data-viewport="mobile">Mobile</button></div>
+            <span class="browser-dot"></span><span class="browser-dot"></span><span class="browser-dot"></span>
+            <button id="webRefresh" type="button" title="Refresh web output">↻</button>
+            <div class="address"><span>bugfalse.local</span><span class="address-path" id="webPath">/index.html</span></div>
+            <div class="viewport-tools" aria-label="Viewport">
+              <button type="button" data-viewport="desktop" class="active">Desktop</button>
+              <button type="button" data-viewport="tablet">Tablet</button>
+              <button type="button" data-viewport="mobile">Mobile</button>
+            </div>
           </div>
           <div class="web-content">
-            <div class="web-preview-wrap"><iframe id="previewFrame" title="Live web output" sandbox="allow-scripts"></iframe></div>
-            <span class="inspect-status web-live-status" id="previewStatus">Live</span>
+            <iframe id="previewFrame" title="Live web output" sandbox="allow-scripts"></iframe>
+            <div class="web-status" id="previewStatus">Live</div>
           </div>
         </section>
       </div>
 
-      <section class="bottom-panel">
-        <div class="panel-tabs"><button class="panel-collapse" id="bottomToggle" title="Collapse output panel" aria-label="Collapse output panel">⌄</button>
-          <button class="panel-tab active" data-panel="output">Live Output</button>
-          <button class="panel-tab" data-panel="problems">Problems <b id="problemCount">0</b></button>
+      <section class="bottom-panel" id="bottomPanel">
+        <div class="panel-bar">
+          <button class="panel-collapse" id="bottomToggle" type="button" title="Toggle Live Output">⌄</button>
+          <button class="panel-tab active" data-panel="output" type="button">Live Output</button>
+          <button class="panel-tab" data-panel="problems" type="button">Problems <b id="problemCount">0</b></button>
         </div>
         <div class="panel-content" id="panelContent"></div>
       </section>
     </main>
+  </div>
 
-    <div class="codeai-popover hidden" id="codeAiPopover" role="dialog" aria-label="CodeAI controls">
-      <div class="codeai-head"><div><strong>CodeAI</strong><small>Improve the current code directly</small></div><button id="closeCodeAi" aria-label="Close CodeAI">×</button></div>
-      <div class="codeai-actions">
-        <button data-codeai-mode="fix">Fix code</button>
-        <button data-codeai-mode="improve">Improve code</button>
-        <button data-codeai-mode="custom">Make a change…</button>
-      </div>
-      <textarea id="codeAiPrompt" rows="3" placeholder="Tell CodeAI what you want changed…"></textarea>
-      <div class="codeai-foot"><span id="codeAiStatus">Ready</span><button class="primary" id="runCodeAi">Apply</button></div>
+  <div class="codeai-popover hidden" id="codeAiPopover" role="dialog" aria-label="CodeAI">
+    <div class="codeai-head">
+      <div><strong>CodeAI</strong><small>Change the current file</small></div>
+      <button id="closeCodeAi" type="button" aria-label="Close CodeAI">×</button>
     </div>
-  <footer class="statusbar"><div><span class="status-dot ready" id="statusDot"></span><span id="statusText">Ready</span></div><div><span id="cursor">Ln 1, Col 1</span><span>UTF-8</span><span id="fileStatus">No file</span></div></footer>
+    <div class="codeai-actions">
+      <button type="button" data-codeai-mode="fix">Fix</button>
+      <button type="button" data-codeai-mode="improve">Improve</button>
+      <button type="button" data-codeai-mode="custom">Change…</button>
+    </div>
+    <textarea id="codeAiPrompt" class="hidden" rows="3" placeholder="What should change?"></textarea>
+    <div class="codeai-foot"><span id="codeAiStatus">Ready</span><button class="primary" id="runCodeAi" type="button">Run</button></div>
+  </div>
+
+  <footer class="statusbar">
+    <div><span class="status-dot ready" id="statusDot"></span><span id="statusText">Ready</span></div>
+    <div><span id="cursor">Ln 1, Col 1</span><span id="fileStatus">No file</span></div>
+  </footer>
 </div>
 
-<div class="modal hidden" id="settingsModal"><div class="modal-card"><div class="modal-head"><strong>Settings</strong><button data-close="settingsModal">×</button></div><label>Live update delay<select id="debounceSelect"><option value="500">500 ms</option><option value="800" selected>800 ms</option><option value="1200">1200 ms</option></select></label><label><input type="checkbox" id="minimapToggle" checked> Editor minimap</label><button class="primary full" data-close="settingsModal">Done</button></div></div>
-<div class="modal hidden" id="newFileModal"><div class="modal-card"><div class="modal-head"><strong>New file</strong><button data-close="newFileModal">×</button></div><label>Filename<input id="newFileName" value="untitled.txt" autocomplete="off"></label><button class="primary full" id="createFileConfirm">Create</button></div></div>
-<div class="modal hidden" id="renameModal"><div class="modal-card"><div class="modal-head"><strong>Rename file</strong><button data-close="renameModal">×</button></div><label>Filename<input id="renameFileName" autocomplete="off"></label><button class="primary full" id="renameFileConfirm">Rename</button></div></div>
+<input id="fileInput" type="file" multiple hidden>
+<input id="folderInput" type="file" webkitdirectory directory multiple hidden>
+
+<div class="modal hidden" id="settingsModal"><div class="modal-card"><div class="modal-head"><strong>Settings</strong><button type="button" data-close="settingsModal">×</button></div><label>Live delay<select id="debounceSelect"><option value="500">500 ms</option><option value="800" selected>800 ms</option><option value="1200">1200 ms</option></select></label><label><span>Editor minimap</span><input type="checkbox" id="minimapToggle" checked></label><button class="primary full" type="button" data-close="settingsModal">Done</button></div></div>
+<div class="modal hidden" id="newFileModal"><div class="modal-card"><div class="modal-head"><strong>New file</strong><button type="button" data-close="newFileModal">×</button></div><label>Filename<input id="newFileName" value="untitled.txt" autocomplete="off"></label><button class="primary full" type="button" id="createFileConfirm">Create</button></div></div>
+<div class="modal hidden" id="renameModal"><div class="modal-card"><div class="modal-head"><strong>Rename file</strong><button type="button" data-close="renameModal">×</button></div><label>Filename<input id="renameFileName" autocomplete="off"></label><button class="primary full" type="button" id="renameFileConfirm">Rename</button></div></div>
 
 <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs/loader.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
-<script src="/static/js/app.js?v=20260825-clean"></script>
+<script src="/static/js/app.js?v=20260825-audit1"></script>
 </body>
 </html>
