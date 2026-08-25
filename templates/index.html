@@ -1,1229 +1,194 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>BugFalse — AI Python Debugger</title>
-  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Syne:wght@400;600;800&display=swap" rel="stylesheet" />
-  <style>
-    :root {
-      --bg: #080b0e;
-      --surface: #0d1117;
-      --panel: #10151c;
-      --panel2: #0f1419;
-      --border: #1a2330;
-      --border2: #243040;
-      --accent: #00e5a0;
-      --accent2: #0096ff;
-      --accent3: #a259ff;
-      --warn: #ff9500;
-      --err: #ff3e5e;
-      --ok: #00e5a0;
-      --muted: #3d5060;
-      --text: #c0d0e0;
-      --text-dim: #587080;
-      --mono: 'JetBrains Mono', monospace;
-      --sans: 'Syne', sans-serif;
-      --radius: 8px;
-    }
-
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-    html, body { height: 100%; }
-
-    body {
-      background: var(--bg);
-      color: var(--text);
-      font-family: var(--mono);
-      min-height: 100vh;
-      overflow-x: hidden;
-    }
-
-    body::after {
-      content: '';
-      position: fixed; inset: 0;
-      background-image:
-        linear-gradient(rgba(0,229,160,0.018) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(0,229,160,0.018) 1px, transparent 1px);
-      background-size: 44px 44px;
-      pointer-events: none; z-index: 0;
-    }
-
-    .app { position: relative; z-index: 1; display: flex; flex-direction: column; min-height: 100vh; }
-
-    /* ── HEADER ── */
-    header {
-      display: flex; justify-content: space-between; align-items: center;
-      padding: 13px 28px;
-      background: rgba(8,11,14,0.95);
-      border-bottom: 1px solid var(--border);
-      backdrop-filter: blur(14px);
-      position: sticky; top: 0; z-index: 100;
-    }
-    .logo { display: flex; align-items: center; gap: 11px; }
-    .logo-icon {
-      width: 33px; height: 33px;
-      border: 1.5px solid var(--accent); border-radius: 8px;
-      display: flex; align-items: center; justify-content: center;
-    }
-    .logo-text { font-family: var(--sans); font-size: 19px; font-weight: 800; }
-    .logo-text span { color: var(--accent); }
-    .header-right { display: flex; align-items: center; gap: 10px; }
-    .model-badge {
-      border: 1px solid var(--border2); border-radius: 100px;
-      padding: 4px 10px; color: var(--text-dim); font-size: 10px; letter-spacing: 1px;
-    }
-    .theme-toggle {
-      width: 28px; height: 28px;
-      background: transparent; border: 1px solid var(--border2); border-radius: 6px;
-      color: var(--text-dim); font-size: 14px; cursor: pointer;
-      display: flex; align-items: center; justify-content: center;
-      transition: 0.15s;
-    }
-    .theme-toggle:hover { border-color: var(--accent); color: var(--accent); }
-
-    /* ── MAIN GRID ── */
-    .main { flex: 1; display: grid; grid-template-columns: 1fr 1fr; min-height: calc(100vh - 112px); }
-    .panel { display: flex; flex-direction: column; min-height: 0; }
-    .panel-left { border-right: 1px solid var(--border); }
-
-    /* ── PANEL HEADER ── */
-    .panel-header {
-      display: flex; align-items: center; gap: 12px;
-      padding: 11px 22px;
-      background: var(--surface);
-      border-bottom: 1px solid var(--border);
-      flex-shrink: 0;
-    }
-    .panel-title { display: flex; align-items: center; gap: 8px; color: var(--text-dim); font-size: 11px; letter-spacing: 2px; text-transform: uppercase; }
-
-    /* ── TAB BAR (input tabs) ── */
-    .tab-bar {
-      display: flex; gap: 2px;
-      padding: 8px 22px 0;
-      background: var(--surface);
-      border-bottom: 1px solid var(--border);
-      flex-shrink: 0;
-    }
-    .tab-btn {
-      padding: 7px 14px;
-      background: transparent; border: none;
-      color: var(--text-dim); font-family: var(--mono); font-size: 11px;
-      cursor: pointer; border-radius: 6px 6px 0 0;
-      border-bottom: 2px solid transparent;
-      transition: 0.15s; letter-spacing: 0.5px;
-    }
-    .tab-btn:hover { color: var(--text); }
-    .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
-
-    /* ── FILE TABS (open file tabs) ── */
-    .file-tabs-bar {
-      display: flex; align-items: center; gap: 0;
-      background: var(--panel); border-bottom: 1px solid var(--border);
-      overflow-x: auto; flex-shrink: 0;
-    }
-    .file-tab {
-      display: flex; align-items: center; gap: 7px;
-      padding: 7px 14px;
-      font-size: 11px; color: var(--text-dim);
-      border-right: 1px solid var(--border);
-      cursor: pointer; white-space: nowrap;
-      background: transparent;
-      border-bottom: 2px solid transparent;
-      transition: 0.1s;
-    }
-    .file-tab:hover { color: var(--text); background: rgba(255,255,255,0.02); }
-    .file-tab.active { color: var(--accent); border-bottom-color: var(--accent); background: rgba(0,229,160,0.04); }
-    .file-tab .close-tab { opacity: 0.4; font-size: 12px; cursor: pointer; }
-    .file-tab:hover .close-tab { opacity: 1; }
-    .file-tab.active .close-tab { opacity: 0.6; }
-    .file-tabs-bar:empty + .editor-wrap { display: flex; }
-
-    /* ── DROP ZONE ── */
-    .drop-zone {
-      flex: 1; display: flex; flex-direction: column;
-      align-items: center; justify-content: center; gap: 18px;
-      padding: 40px 24px;
-      background: var(--panel);
-      border: 2px dashed var(--border2);
-      margin: 16px; border-radius: 12px;
-      text-align: center; cursor: pointer;
-      transition: 0.2s;
-    }
-    .drop-zone:hover, .drop-zone.drag-over { border-color: var(--accent); background: rgba(0,229,160,0.03); }
-    .drop-icon { font-size: 32px; margin-bottom: 4px; }
-    .drop-title { font-family: var(--sans); font-size: 15px; font-weight: 600; color: var(--text); }
-    .drop-sub { font-size: 11px; color: var(--text-dim); line-height: 1.7; }
-    .drop-types { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; margin-top: 8px; }
-    .type-pill {
-      padding: 3px 10px; border-radius: 100px;
-      font-size: 10px; border: 1px solid var(--border2); color: var(--text-dim);
-    }
-    .type-pill.py { border-color: rgba(0,229,160,0.3); color: var(--accent); }
-    .type-pill.zip { border-color: rgba(0,150,255,0.3); color: var(--accent2); }
-    .type-pill.txt { border-color: rgba(162,89,255,0.3); color: var(--accent3); }
-
-    /* ── FILE TREE ── */
-    #fileTree { display: none; flex-direction: column; background: var(--surface); border-bottom: 1px solid var(--border); max-height: 180px; overflow-y: auto; flex-shrink: 0; }
-    #fileTree.show { display: flex; }
-    .tree-header { padding: 8px 22px; font-size: 10px; letter-spacing: 1.5px; color: var(--muted); text-transform: uppercase; display: flex; align-items: center; justify-content: space-between; }
-    .tree-header button { background: transparent; border: none; color: var(--text-dim); font-family: var(--mono); font-size: 10px; cursor: pointer; }
-    .tree-header button:hover { color: var(--err); }
-    .tree-item {
-      display: flex; align-items: center; gap: 8px;
-      padding: 6px 22px; font-size: 11px; cursor: pointer; color: var(--text-dim);
-      transition: 0.1s;
-    }
-    .tree-item:hover { background: rgba(255,255,255,0.03); color: var(--text); }
-    .tree-item.active { color: var(--accent); background: rgba(0,229,160,0.05); }
-    .tree-item .fi { font-size: 13px; }
-    .tree-item .fname { flex: 1; }
-    .tree-item .fsize { font-size: 10px; color: var(--muted); }
-
-    /* ── EDITOR ── */
-    .editor-wrap { flex: 1; position: relative; background: var(--panel); display: flex; overflow: hidden; }
-    .line-numbers { width: 46px; padding-top: 18px; border-right: 1px solid var(--border); background: var(--surface); flex-shrink: 0; overflow: hidden; }
-    .line-numbers span { display: block; text-align: right; padding-right: 10px; color: var(--muted); font-size: 11px; line-height: 22px; }
-    textarea {
-      flex: 1; background: transparent; border: none; outline: none; resize: none;
-      padding: 18px 18px 18px 16px;
-      color: #8de8b8; font-family: var(--mono); font-size: 13px; line-height: 22px;
-    }
-    textarea::placeholder { color: var(--muted); }
-
-    /* ── CONTROLS ── */
-    .controls {
-      display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
-      padding: 12px 22px;
-      background: var(--surface); border-top: 1px solid var(--border);
-      flex-shrink: 0;
-    }
-    .btn {
-      padding: 8px 14px; border-radius: 6px;
-      font-family: var(--mono); font-size: 12px; cursor: pointer; transition: 0.15s;
-      display: flex; align-items: center; gap: 6px;
-    }
-    .btn-debug { background: var(--accent); color: #000; border: none; font-weight: 700; }
-    .btn-debug:hover { box-shadow: 0 0 20px rgba(0,229,160,0.3); }
-    .btn-debug:disabled { opacity: 0.5; cursor: not-allowed; }
-    .btn-ghost { background: transparent; border: 1px solid var(--border2); color: var(--text-dim); }
-    .btn-ghost:hover { border-color: var(--accent2); color: var(--accent2); }
-    .btn-danger { background: transparent; border: 1px solid var(--border2); color: var(--text-dim); }
-    .btn-danger:hover { border-color: var(--err); color: var(--err); }
-    .btn-import { background: transparent; border: 1px solid rgba(0,150,255,0.3); color: var(--accent2); }
-    .btn-import:hover { border-color: var(--accent2); background: rgba(0,150,255,0.06); }
-    .char-count { margin-left: auto; color: var(--muted); font-size: 11px; }
-
-    /* ── SETTINGS POPOVER ── */
-    .settings-wrap { position: relative; }
-    #settingsPanel {
-      display: none; position: absolute; bottom: calc(100% + 8px); right: 0;
-      background: var(--panel2); border: 1px solid var(--border2); border-radius: 10px;
-      padding: 16px; width: 240px; z-index: 200;
-      box-shadow: 0 8px 32px rgba(0,0,0,0.5);
-    }
-    #settingsPanel.open { display: block; }
-    .settings-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
-    .settings-row label { font-size: 11px; color: var(--text-dim); }
-    .settings-row:last-child { margin-bottom: 0; }
-    .toggle {
-      width: 32px; height: 18px; border-radius: 9px;
-      background: var(--border2); border: none; cursor: pointer;
-      position: relative; transition: 0.2s; flex-shrink: 0;
-    }
-    .toggle::after { content:''; position: absolute; top: 3px; left: 3px; width: 12px; height: 12px; border-radius: 50%; background: var(--text-dim); transition: 0.2s; }
-    .toggle.on { background: rgba(0,229,160,0.3); }
-    .toggle.on::after { left: 17px; background: var(--accent); }
-    select.mini {
-      background: var(--surface); border: 1px solid var(--border2); border-radius: 4px;
-      color: var(--text); font-family: var(--mono); font-size: 11px; padding: 3px 6px; outline: none;
-    }
-
-    /* ── DOT ── */
-    .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 6px var(--accent); }
-    .dot.idle { background: var(--muted); box-shadow: none; }
-    .dot.ok { background: var(--ok); box-shadow: 0 0 6px var(--ok); }
-    .dot.warn { background: var(--warn); box-shadow: 0 0 6px var(--warn); }
-    .dot.err { background: var(--err); box-shadow: 0 0 6px var(--err); }
-
-    /* ── OUTPUT MENU ── */
-    .output-menu-wrap { margin-left: auto; }
-    .output-menu {
-      appearance: none; -webkit-appearance: none;
-      background: var(--panel); border: 1px solid var(--border2); border-radius: 8px;
-      padding: 7px 36px 7px 13px; color: var(--text);
-      font-family: var(--mono); font-size: 11px; min-width: 150px;
-      outline: none; cursor: pointer; transition: 0.15s;
-      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%2300e5a0' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
-      background-repeat: no-repeat; background-position: right 11px center; background-size: 13px;
-    }
-    .output-menu:hover { border-color: var(--accent2); }
-    .output-menu:focus { border-color: var(--accent); box-shadow: 0 0 0 1px rgba(0,229,160,0.18); }
-    .output-menu option { background: #0f1419; color: var(--text); }
-
-    /* ── OUTPUT PANEL ── */
-    .output-panel { flex: 1; overflow-y: auto; background: var(--panel); display: flex; flex-direction: column; }
-    .empty-state, .loading-state, .key-required {
-      flex: 1; display: flex; flex-direction: column;
-      align-items: center; justify-content: center; gap: 16px;
-      padding: 40px; text-align: center;
-    }
-    .empty-icon { width: 58px; height: 58px; border: 1px dashed var(--border2); border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 24px; }
-    .loader { display: flex; gap: 6px; }
-    .loader span { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); animation: bounce 1.1s infinite; }
-    .loader span:nth-child(2) { animation-delay: .15s; }
-    .loader span:nth-child(3) { animation-delay: .3s; }
-    @keyframes bounce { 0%,80%,100% { transform: scale(0.5); opacity:.3; } 40% { transform: scale(1); opacity:1; } }
-    .loading-text { color: var(--text-dim); font-size: 12px; }
-    #results { height: 100%; }
-    .output-section { padding: 18px; }
-    .error-item { display: flex; gap: 12px; padding: 12px 14px; margin-bottom: 10px; background: rgba(255,62,94,0.04); border-left: 3px solid var(--err); border-radius: 6px; }
-    .error-item.warn { border-left-color: var(--warn); background: rgba(255,149,0,0.04); }
-    .error-line { color: var(--err); font-size: 11px; font-weight: 700; }
-    .error-msg { font-size: 13px; line-height: 1.6; }
-    .error-type { margin-top: 4px; color: var(--muted); font-size: 11px; }
-    .explain-text { line-height: 1.8; white-space: pre-wrap; }
-    .code-block { background: var(--bg); border: 1px solid var(--border2); border-radius: 8px; overflow: hidden; }
-    .code-block-header { display: flex; justify-content: space-between; align-items: center; padding: 9px 13px; background: var(--surface); border-bottom: 1px solid var(--border); font-size: 11px; color: var(--muted); }
-    .code-block pre { padding: 16px; overflow-x: auto; color: #8de8b8; font-size: 12px; line-height: 22px; }
-    .no-errors { padding: 16px; background: rgba(0,229,160,0.05); border: 1px solid rgba(0,229,160,0.15); border-radius: 8px; color: var(--ok); }
-
-    /* ── PROGRESS BAR ── */
-    #progressBar {
-      height: 2px; background: var(--border);
-      position: relative; overflow: hidden; flex-shrink: 0;
-    }
-    #progressBar .fill { height: 100%; width: 0; background: linear-gradient(90deg, var(--accent), var(--accent2)); transition: width 0.3s; }
-    #progressBar.active .fill { animation: scan 1.4s linear infinite; width: 100%; }
-    @keyframes scan { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
-
-    /* ── HISTORY ── */
-    .history-list { display: flex; flex-direction: column; gap: 6px; padding: 16px; }
-    .history-item {
-      display: flex; align-items: center; gap: 10px;
-      padding: 10px 12px; border-radius: 6px;
-      border: 1px solid var(--border); cursor: pointer;
-      transition: 0.15s; background: var(--surface);
-    }
-    .history-item:hover { border-color: var(--accent2); }
-    .hi-icon { font-size: 14px; }
-    .hi-meta { flex: 1; }
-    .hi-name { font-size: 12px; }
-    .hi-time { font-size: 10px; color: var(--muted); }
-    .hi-badge { font-size: 10px; padding: 2px 8px; border-radius: 100px; }
-    .hi-badge.ok { background: rgba(0,229,160,0.1); color: var(--ok); border: 1px solid rgba(0,229,160,0.2); }
-    .hi-badge.err { background: rgba(255,62,94,0.1); color: var(--err); border: 1px solid rgba(255,62,94,0.2); }
-
-    /* ── DIFF TOGGLE ── */
-    .diff-bar {
-      display: flex; align-items: center; gap: 10px;
-      padding: 10px 18px; background: var(--surface); border-bottom: 1px solid var(--border);
-      font-size: 11px; color: var(--text-dim);
-    }
-    .diff-bar button { background: transparent; border: 1px solid var(--border2); border-radius: 4px; padding: 3px 10px; color: var(--text-dim); font-family: var(--mono); font-size: 10px; cursor: pointer; }
-    .diff-bar button:hover { border-color: var(--accent); color: var(--accent); }
-    .diff-bar button.active { border-color: var(--accent); color: var(--accent); background: rgba(0,229,160,0.06); }
-
-    /* ── STATS ROW ── */
-    .stats-row { display: flex; gap: 1px; flex-shrink: 0; }
-    .stat-cell { flex: 1; padding: 8px 16px; background: var(--surface); border-bottom: 1px solid var(--border); border-right: 1px solid var(--border); }
-    .stat-cell:last-child { border-right: none; }
-    .stat-val { font-size: 16px; font-weight: 700; }
-    .stat-val.red { color: var(--err); }
-    .stat-val.yellow { color: var(--warn); }
-    .stat-val.green { color: var(--ok); }
-    .stat-label { font-size: 10px; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; margin-top: 2px; }
-
-    /* ── NOTIFICATIONS ── */
-    #toast {
-      position: fixed; bottom: 24px; right: 24px;
-      background: var(--panel2); border: 1px solid var(--border2); border-radius: 8px;
-      padding: 10px 16px; font-size: 12px; color: var(--text);
-      transform: translateY(20px); opacity: 0; pointer-events: none;
-      transition: 0.25s; z-index: 999;
-    }
-    #toast.show { transform: translateY(0); opacity: 1; }
-
-    /* ── SCROLLBAR ── */
-    ::-webkit-scrollbar { width: 5px; height: 5px; }
-    ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
-
-    /* ── MOBILE ── */
-    @media (max-width: 768px) {
-      .main { grid-template-columns: 1fr; }
-      .panel-left { border-right: none; border-bottom: 1px solid var(--border); }
-      header { padding-left: 16px; padding-right: 16px; }
-      .panel-header { flex-wrap: wrap; gap: 8px; padding: 10px 14px; }
-      .controls { padding: 12px 14px; }
-      .output-menu { width: 100%; }
-    }
-
-    /* ── LIGHT MODE ── */
-    body.light {
-      --bg: #f4f6f8; --surface: #ffffff; --panel: #f8fafc; --panel2: #ffffff;
-      --border: #e0e8f0; --border2: #c8d8e8;
-      --muted: #94a8b8; --text: #1a2838; --text-dim: #5a7080;
-    }
-    body.light textarea { color: #1a6040; }
-    body.light .code-block pre { color: #1a6040; }
-
-    .btn-ai { background: rgba(162,89,255,.09); border:1px solid rgba(162,89,255,.35); color:#c59bff; }
-    .btn-ai:hover { border-color:var(--accent3); color:#fff; background:rgba(162,89,255,.16); }
-    .btn:disabled { opacity:.45; cursor:not-allowed; }
-    .live-output { background:#070a0d; border:1px solid var(--border); border-radius:8px; overflow:hidden; }
-    .live-output-head { display:flex; justify-content:space-between; align-items:center; padding:10px 12px; border-bottom:1px solid var(--border); font-size:10px; color:var(--text-dim); text-transform:uppercase; letter-spacing:1.5px; }
-    .live-output pre { margin:0; padding:14px; white-space:pre-wrap; word-break:break-word; color:#cfe7dc; font:12px/1.65 var(--mono); min-height:150px; }
-    .run-meta { display:flex; gap:8px; flex-wrap:wrap; padding:9px 12px; border-top:1px solid var(--border); color:var(--muted); font-size:10px; }
-    .run-meta .ok { color:var(--ok); } .run-meta .err { color:var(--err); }
-    .diff-box { display:grid; grid-template-columns:1fr 1fr; gap:1px; background:var(--border); border:1px solid var(--border); border-radius:8px; overflow:hidden; }
-    .diff-side { background:#090d11; min-width:0; } .diff-side h4 { padding:9px 12px; border-bottom:1px solid var(--border); color:var(--text-dim); font-size:10px; letter-spacing:1.4px; text-transform:uppercase; }
-    .diff-side pre { margin:0; padding:12px; max-height:420px; overflow:auto; white-space:pre-wrap; font:11px/1.6 var(--mono); color:var(--text); }
-    .ai-progress { padding:14px; border:1px solid var(--border); border-radius:8px; background:rgba(162,89,255,.04); }
-    .ai-progress-row { display:flex; gap:9px; align-items:center; padding:5px 0; color:var(--text-dim); font-size:11px; }
-    .ai-progress-row.active { color:var(--accent3); } .ai-progress-row.done { color:var(--ok); }
-    .sticky-actions { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
-    @media (max-width: 980px) { .main { grid-template-columns:1fr; } .panel-left { border-right:0; border-bottom:1px solid var(--border); min-height:65vh; } .panel { min-height:50vh; } .diff-box { grid-template-columns:1fr; } }
-  </style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#090b10" />
+  <title>BugFalse — AI Engineering Workspace</title>
+  <link rel="stylesheet" href="/static/css/styles.css?v=20260825-3" />
 </head>
 <body>
-<div class="app">
-
-  <!-- HEADER -->
-  <header>
-    <div class="logo">
-      <div class="logo-icon">
-        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#00e5a0" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="11" cy="11" r="7"/>
-          <line x1="21" y1="21" x2="16.65" y2="16.65"/>
-          <line x1="8" y1="11" x2="14" y2="11"/>
-          <line x1="11" y1="8" x2="11" y2="14"/>
-        </svg>
-      </div>
-      <div class="logo-text">Bug<span>False</span></div>
-    </div>
-    <div class="header-right">
-      <div class="model-badge">xAI Grok</div>
-      <button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme">☀</button>
+<div class="app-shell" id="app">
+  <header class="topbar">
+    <div class="brand"><span class="brand-mark">B</span><span>BugFalse</span><span class="brand-badge">AI ENGINEERING</span></div>
+    <div class="top-actions">
+      <button class="ghost-btn" id="projectNameBtn">Workspace <span>⌄</span></button>
+      <button class="icon-btn" id="commandBtn" title="Command palette">⌘K</button>
+      <button class="icon-btn" id="themeBtn" title="Toggle theme">☼</button>
+      <button class="avatar">U</button>
     </div>
   </header>
 
-  <!-- MAIN -->
-  <div class="main">
+  <div class="workspace">
+    <aside class="sidebar">
+      <div class="side-section">
+        <div class="side-label">WORKSPACE</div>
+        <button class="side-item active" data-panel="explorer"><span>▦</span> Explorer</button>
+        <button class="side-item" data-panel="search"><span>⌕</span> Search</button>
+        <button class="side-item" data-panel="history"><span>◷</span> History</button>
+      </div>
+      <div class="side-section">
+        <div class="side-label">BUGFALSE AI</div>
+        <button class="side-item ai-item" data-ai="analyze"><span>✦</span> Analyze</button>
+        <button class="side-item ai-item" data-ai="fix"><span>⚡</span> Fix bugs</button>
+        <button class="side-item ai-item" data-ai="improve"><span>↗</span> Improve</button>
+        <button class="side-item ai-item" data-ai="refactor"><span>◇</span> Refactor</button>
+        <button class="side-item ai-item" data-ai="optimize"><span>◈</span> Optimize</button>
+        <button class="side-item ai-item" data-ai="security"><span>⌁</span> Security</button>
+        <button class="side-item ai-item" data-ai="tests"><span>✓</span> Generate tests</button>
+      </div>
+      <div class="side-spacer"></div>
+      <div class="side-section compact">
+        <button class="side-item" id="settingsBtn"><span>⚙</span> Settings</button>
+      </div>
+    </aside>
 
-    <!-- LEFT PANEL (INPUT) -->
-    <div class="panel panel-left">
-
-      <div class="panel-header">
-        <div class="panel-title">
-          <div class="dot" id="editorDot"></div>
-          <span id="panelFileName">code_input.py</span>
+    <main class="main-area">
+      <div class="toolbar">
+        <div class="toolbar-left">
+          <button class="primary-btn" id="uploadBtn">＋ Upload</button>
+          <input type="file" id="fileInput" hidden />
+          <input type="file" id="projectInput" hidden webkitdirectory directory multiple />
+          <button class="toolbar-btn" id="projectUploadBtn">Project</button>
+          <button class="toolbar-btn" id="runBtn"><span class="play">▶</span> Run</button>
+          <button class="toolbar-btn" id="stopBtn" disabled>■ Stop</button>
         </div>
-        <span style="font-size:11px;color:var(--muted)">Python</span>
+        <div class="toolbar-right">
+          <label class="live-toggle"><input type="checkbox" id="liveToggle" checked /><span class="toggle"></span> Live</label>
+          <span class="runtime-pill" id="runtimePill">Python 3</span>
+          <button class="toolbar-btn" id="downloadBtn">↓ Download</button>
+        </div>
       </div>
 
-      <!-- INPUT MODE TABS -->
-      <div class="tab-bar">
-        <button class="tab-btn active" onclick="switchInputTab('editor')" id="tab-editor">Editor</button>
-        <button class="tab-btn" onclick="switchInputTab('import')" id="tab-import">Import File</button>
-        <button class="tab-btn" onclick="switchInputTab('history')" id="tab-history">History</button>
-      </div>
+      <div class="file-tabs" id="fileTabs"></div>
 
-      <!-- EDITOR VIEW -->
-      <div id="view-editor" style="display:flex;flex-direction:column;flex:1;min-height:0;">
-        <!-- File tree (visible when files loaded) -->
-        <div id="fileTree">
-          <div class="tree-header">
-            <span>Open Files</span>
-            <button onclick="clearFiles()">✕ Clear all</button>
+      <div class="editor-layout">
+        <section class="editor-pane">
+          <div class="editor-wrap" id="editorWrap">
+            <div class="editor-empty" id="editorEmpty">
+              <div class="empty-icon">⌘</div>
+              <h2>Build with BugFalse</h2>
+              <p>Drop a code file here, start typing, or ask AI to improve your code.</p>
+              <div class="empty-actions">
+                <button class="primary-btn" id="emptyUpload">Upload file</button>
+                <button class="toolbar-btn" id="emptySample">Open sample</button>
+              </div>
+            </div>
+            <div id="monaco" class="monaco"></div>
           </div>
-          <div id="treeItems"></div>
-        </div>
 
-        <!-- Open file tabs -->
-        <div class="file-tabs-bar" id="fileTabs"></div>
+          <div class="bottom-panel">
+            <div class="panel-tabs">
+              <button class="panel-tab active" data-bottom="output">Output <span id="outputDot" class="status-dot"></span></button>
+              <button class="panel-tab" data-bottom="problems">Problems <span class="count" id="problemCount">0</span></button>
+              <button class="panel-tab" data-bottom="tests">Tests <span class="count" id="testCount">—</span></button>
+              <button class="panel-tab" data-bottom="diff">AI Diff</button>
+              <button class="panel-tab" data-bottom="analysis">Analysis</button>
+            </div>
+            <div class="bottom-content" id="bottomContent"></div>
+          </div>
+        </section>
 
-        <!-- Editor -->
-        <div class="editor-wrap">
-          <div class="line-numbers" id="lineNumbers"><span>1</span></div>
-          <textarea
-            id="codeInput"
-            spellcheck="false" autocomplete="off"
-            placeholder="# Paste your Python code here, or use Import File tab…"
-            oninput="onCodeChange()"
-            onkeydown="handleTab(event)"
-          ></textarea>
-        </div>
-
-        <!-- Controls -->
-        <div class="controls">
-          <button class="btn btn-debug" id="debugBtn" onclick="runDebug()">⚡ Analyze</button>
-          <button class="btn btn-ai" onclick="runAI('fix')">✦ Fix</button>
-          <button class="btn btn-ai" onclick="runAI('improve')">↗ Improve</button>
-          <button class="btn btn-ghost" onclick="runCode(true)">▶ Run</button>
-          <button class="btn btn-ghost" onclick="loadSample()">Sample</button>
-          <button class="btn btn-ghost" onclick="formatCode()">Format</button>
-          <div class="settings-wrap">
-            <button class="btn btn-ghost" onclick="toggleSettings()">⚙ Settings</button>
-            <div id="settingsPanel">
-              <div class="settings-row">
-                <label>Live output</label>
-                <button class="toggle on" id="liveToggle" onclick="toggleOpt(this,'live')"></button>
-              </div>
-              <div class="settings-row">
-                <label>Auto-format on paste</label>
-                <button class="toggle" id="tog-format" onclick="toggleOpt(this)"></button>
-              </div>
-              <div class="settings-row">
-                <label>Show line numbers</label>
-                <button class="toggle on" id="tog-lines" onclick="toggleOpt(this,'lines')"></button>
-              </div>
-              <div class="settings-row">
-                <label>Severity filter</label>
-                <select class="mini" id="severityFilter">
-                  <option value="all">All</option>
-                  <option value="error">Errors only</option>
-                  <option value="warn">Warnings+</option>
-                </select>
-              </div>
-              <div class="settings-row">
-                <label>Max tokens</label>
-                <select class="mini" id="maxTokens">
-                  <option value="800">800</option>
-                  <option value="1200" selected>1200</option>
-                  <option value="2000">2000</option>
-                </select>
+        <aside class="ai-panel">
+          <div class="ai-header">
+            <div><div class="ai-title"><span class="spark">✦</span> BugFalse AI</div><div class="ai-subtitle">Code-aware engineering assistant</div></div>
+            <button class="icon-btn" id="clearAiBtn">×</button>
+          </div>
+          <div class="ai-context" id="aiContext">No file selected</div>
+          <div class="ai-modes">
+            <button data-ai="analyze">Analyze</button><button data-ai="fix">Fix</button><button data-ai="improve">Improve</button><button data-ai="security">Secure</button>
+          </div>
+          <div class="ai-chat" id="aiChat">
+            <div class="ai-welcome">
+              <div class="welcome-icon">✦</div>
+              <h3>Your AI engineering copilot</h3>
+              <p>Ask me to find bugs, improve code, explain failures, or generate tests.</p>
+              <div class="suggestions">
+                <button data-suggestion="Find the most important bug in this file">Find the most important bug</button>
+                <button data-suggestion="Improve this code without changing its behavior">Improve without changing behavior</button>
+                <button data-suggestion="Explain the current error and fix it">Explain and fix the error</button>
               </div>
             </div>
           </div>
-          <button class="btn btn-ghost" onclick="downloadCurrentFile()">↓ Download</button>
-          <button class="btn btn-danger" onclick="clearAll()">Clear</button>
-          <span class="char-count" id="charCount">0 chars</span>
-        </div>
-      </div>
-
-      <!-- IMPORT VIEW -->
-      <div id="view-import" style="display:none;flex-direction:column;flex:1;min-height:0;overflow-y:auto;">
-        <div
-          class="drop-zone" id="dropZone"
-          onclick="triggerFilePick()"
-          ondrop="handleDrop(event)" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)"
-        >
-          <div class="drop-icon">📂</div>
-          <div class="drop-title">Drop files here or click to browse</div>
-          <div class="drop-sub">
-            Import .py files, .txt files, or .zip archives containing Python code.<br>
-            Multiple files supported — use the file tree to switch between them.
+          <div class="ai-composer">
+            <textarea id="aiInput" placeholder="Ask BugFalse about your code…" rows="2"></textarea>
+            <div class="composer-footer"><span>Enter to send · Shift+Enter for newline</span><button class="send-btn" id="sendAi">↑</button></div>
           </div>
-          <div class="drop-types">
-            <span class="type-pill py">.py</span>
-            <span class="type-pill txt">.txt</span>
-            <span class="type-pill zip">.zip</span>
-          </div>
-        </div>
-        <input type="file" id="filePickerInput" style="display:none" accept=".py,.txt,.zip" multiple onchange="handleFileInput(event)" />
-
-        <div id="importedList" style="padding:0 16px 16px;display:none;">
-          <div style="font-size:10px;letter-spacing:1.5px;color:var(--muted);text-transform:uppercase;padding:12px 0 8px;">Imported Files</div>
-          <div id="importedItems"></div>
-          <button class="btn btn-ghost" style="margin-top:10px;width:100%;justify-content:center;" onclick="loadSelectedToEditor()">→ Load selected into editor</button>
-          <button class="btn btn-ghost" style="margin-top:8px;width:100%;justify-content:center;" onclick="downloadProject()">↓ Download project ZIP</button>
-        </div>
+        </aside>
       </div>
-
-      <!-- HISTORY VIEW -->
-      <div id="view-history" style="display:none;flex-direction:column;flex:1;min-height:0;overflow-y:auto;">
-        <div class="history-list" id="historyList">
-          <div style="text-align:center;color:var(--muted);font-size:12px;padding:40px 0;">No debug sessions yet</div>
-        </div>
-      </div>
-
-    </div>
-
-    <!-- RIGHT PANEL (OUTPUT — unchanged) -->
-    <div class="panel">
-      <div class="panel-header">
-        <div class="panel-title">
-          <div class="dot idle" id="statusDot"></div>
-          debug_output
-        </div>
-        <div class="output-menu-wrap">
-          <select id="outputMenu" class="output-menu" onchange="switchOutput(this.value)">
-            <option value="issues">Issues</option>
-            <option value="execution">Live Output</option>
-            <option value="diff">AI Diff</option>
-            <option value="analysis">Analysis</option>
-            <option value="fixed">Fixed Code</option>
-            <option value="improvements">Improvements</option>
-          </select>
-        </div>
-        <span style="font-size:11px;color:var(--muted)" id="statusLabel">ready</span>
-      </div>
-
-      <!-- Stats row -->
-      <div class="stats-row" id="statsRow" style="display:none">
-        <div class="stat-cell">
-          <div class="stat-val red" id="statErrors">0</div>
-          <div class="stat-label">Errors</div>
-        </div>
-        <div class="stat-cell">
-          <div class="stat-val yellow" id="statWarns">0</div>
-          <div class="stat-label">Warnings</div>
-        </div>
-        <div class="stat-cell">
-          <div class="stat-val green" id="statLines">—</div>
-          <div class="stat-label">Lines</div>
-        </div>
-        <div class="stat-cell">
-          <div class="stat-val" id="statScore" style="color:var(--accent2)">—</div>
-          <div class="stat-label">Score</div>
-        </div>
-      </div>
-
-      <!-- Progress bar -->
-      <div id="progressBar"><div class="fill"></div></div>
-
-      <div class="output-panel" id="outputPanel">
-        <div class="empty-state" id="emptyState" style="display:flex">
-          <div class="empty-icon">⚡</div>
-          <p>Paste Python code and click <strong>Debug Code</strong></p>
-        </div>
-        <div class="loading-state" id="loadingState" style="display:none">
-          <div class="loader"><span></span><span></span><span></span></div>
-          <div class="loading-text" id="loadingMsg">Scanning code…</div>
-        </div>
-        <div id="results" style="display:none">
-          <div class="output-section" id="issuesSection"></div>
-          <div class="output-section" id="executionSection" style="display:none"></div>
-          <div class="output-section" id="diffSection" style="display:none"></div>
-          <div class="output-section" id="analysisSection" style="display:none"></div>
-          <div class="output-section" id="fixedSection" style="display:none"></div>
-          <div class="output-section" id="improvementsSection" style="display:none"></div>
-        </div>
-      </div>
-    </div>
+    </main>
   </div>
+
+  <div class="statusbar"><div><span class="status-ready" id="statusLight"></span><span id="statusText">Ready</span></div><div><span id="cursorStatus">Ln 1, Col 1</span><span>UTF-8</span><span id="fileStatus">No file</span></div></div>
 </div>
 
-<!-- Toast -->
-<div id="toast"></div>
+<div class="modal hidden" id="commandModal"><div class="modal-card command-card"><input id="commandSearch" autofocus placeholder="Search commands…" /><div id="commandList"></div></div></div>
+<div class="modal hidden" id="settingsModal"><div class="modal-card"><div class="modal-title">Workspace settings <button class="icon-btn" data-close="settingsModal">×</button></div><div class="setting-row"><div><b>Live execution</b><p>Run Python automatically after editing.</p></div><label class="live-toggle"><input type="checkbox" id="settingsLive" checked /><span class="toggle"></span></label></div><div class="setting-row"><div><b>Debounce</b><p>Delay before live execution starts.</p></div><select id="debounceSelect"><option value="600">600 ms</option><option value="900" selected>900 ms</option><option value="1200">1200 ms</option></select></div><div class="setting-row"><div><b>Editor minimap</b><p>Show the code minimap.</p></div><label class="live-toggle"><input type="checkbox" id="minimapToggle" checked /><span class="toggle"></span></label></div></div></div>
 
+<script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs/loader.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script>
-// ── JSZip CDN (loaded lazily on demand) ──
-let JSZip = null;
-async function loadJSZip() {
-  if (JSZip) return JSZip;
-  return new Promise((res, rej) => {
-    const s = document.createElement('script');
-    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
-    s.onload = () => { JSZip = window.JSZip; res(JSZip); };
-    s.onerror = rej;
-    document.head.appendChild(s);
-  });
+const SAMPLE = `def calculate_total(items):\n    total = 0\n    for item in items:\n        if item is None:\n            continue\n        total += item.price\n    return total\n\nitems = []\nprint(calculate_total(items))\n`;
+const state = { files: new Map(), active: null, editor: null, monaco: null, aiResult: null, lastOutput: null, history: [], running: false, timer: null, debounce: 900, theme: 'dark' };
+const $ = id => document.getElementById(id);
+function esc(s=''){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function languageFor(name){const ext=(name.split('.').pop()||'').toLowerCase(); return ({py:'python',js:'javascript',ts:'typescript',jsx:'javascript',tsx:'typescript',java:'java',c:'c',cpp:'cpp',cs:'csharp',go:'go',rs:'rust',php:'php',rb:'ruby',html:'html',css:'css',json:'json',sql:'sql','md':'markdown','yaml':'yaml','yml':'yaml'}[ext]||'plaintext');}
+function current(){return state.active ? state.files.get(state.active) : null;}
+function setStatus(text,kind='ready'){ $('statusText').textContent=text; $('statusLight').className='status-ready '+kind; }
+function renderTabs(){ $('fileTabs').innerHTML=[...state.files.values()].map(f=>`<button class="file-tab ${f.name===state.active?'active':''}" data-file="${esc(f.name)}"><span class="file-icon">${f.language==='python'?'Py':'<> '}</span>${esc(f.name)}${f.dirty?'<span class="dirty">●</span>':''}<span class="tab-x" data-close-file="${esc(f.name)}">×</span></button>`).join(''); }
+function renderContext(){const f=current(); $('aiContext').textContent=f?`${f.name} · ${f.language}`:'No file selected'; $('fileStatus').textContent=f?f.name:'No file';}
+function openFile(name,content){const lang=languageFor(name); state.files.set(name,{name,content,original:content,language:lang,dirty:false}); state.active=name; $('editorEmpty').classList.add('hidden'); renderTabs(); renderContext(); if(state.editor){state.editor.setValue(content); state.monaco.editor.setModelLanguage(state.editor.getModel(),lang); state.editor.focus();} updateCursor(); scheduleLive();}
+function updateCursor(){if(!state.editor)return;const p=state.editor.getPosition();$('cursorStatus').textContent=`Ln ${p.lineNumber}, Col ${p.column}`;}
+function syncEditor(){const f=current();if(!f||!state.editor)return;const v=state.editor.getValue();if(v!==f.content){f.content=v;f.dirty=v!==f.original;renderTabs();}}
+function addHistory(label,detail){state.history.unshift({time:new Date().toLocaleTimeString(),label,detail});if(state.history.length>30)state.history.pop();}
+function setBottom(tab){document.querySelectorAll('.panel-tab').forEach(x=>x.classList.toggle('active',x.dataset.bottom===tab)); renderBottom(tab);}
+function renderBottom(tab='output'){
+ const out=state.lastOutput||{}; const r=state.aiResult||{}; let html='';
+ if(tab==='output') html=`<div class="output-head"><span>${out.ok?'✓ Execution successful':out.stderr?'✕ Execution failed':'Ready'}</span><span>${out.duration_ms?out.duration_ms+' ms':''}</span></div><pre class="terminal">${esc(out.stdout||out.stderr||'Run the current file to see live output.')}</pre>`;
+ if(tab==='problems'){const issues=r.issues||[]; html=issues.length?issues.map(i=>`<div class="problem ${esc(i.severity||'warning')}" data-line="${i.line||1}"><span class="severity">${esc((i.severity||'warning').toUpperCase())}</span><div><b>${esc(i.message||'Issue')}</b><small>${esc(i.type||'')} ${i.line?'· line '+i.line:''}</small></div><button data-ai="${r.mode==='security'?'security':'fix'}">Fix</button></div>`).join(''):`<div class="empty-panel"><span>✓</span><b>No reported problems</b><p>Run the code or ask AI to analyze the current file.</p></div>`;}
+ if(tab==='tests') html=`<div class="empty-panel"><span>✓</span><b>Verification</b><p>BugFalse can use execution output to validate Python fixes. Full project test orchestration is available for future project workflows.</p></div>`;
+ if(tab==='diff') html=renderDiff(r.fixed_code, current()?.content);
+ if(tab==='analysis') html=`<div class="analysis-grid"><div class="score">${r.score??'—'}<small>health score</small></div><div><h3>${esc(r.summary?.errors??0)} errors · ${esc(r.summary?.warnings??0)} warnings</h3><p>${esc(r.analysis||r.explanation||'No analysis yet. Run Analyze or an AI improvement action.')}</p></div></div>`;
+ $('bottomContent').innerHTML=html;
+ $('problemCount').textContent=(r.issues||[]).length; $('outputDot').className='status-dot '+(out.ok?'good':out.stderr?'bad':'');
 }
-
-// ── STATE ──
-let currentResults = null;
-let openFiles = [];     // { name, content, size }
-let activeFile = null;
-let history = [];
-let settingsOpen = false;
-let opts = { autoFormat: false, showLines: true };
-
-// ── THEME ──
-function toggleTheme() {
-  document.body.classList.toggle('light');
-  document.querySelector('.theme-toggle').textContent = document.body.classList.contains('light') ? '🌙' : '☀';
+function renderDiff(newCode,oldCode){if(!newCode)return `<div class="empty-panel"><span>⇄</span><b>No AI proposal yet</b><p>Ask BugFalse to improve or fix the current file.</p></div>`;const a=(oldCode||'').split('\n'),b=String(newCode).split('\n');let rows='';const n=Math.max(a.length,b.length);for(let i=0;i<n;i++){if(a[i]===b[i]) rows+=`<div class="diff-row same"><span>${i+1}</span><code>${esc(a[i]??'')}</code></div>`;else{if(a[i]!==undefined)rows+=`<div class="diff-row removed"><span>−</span><code>${esc(a[i])}</code></div>`;if(b[i]!==undefined)rows+=`<div class="diff-row added"><span>+</span><code>${esc(b[i])}</code></div>`;}}return `<div class="diff-toolbar"><span>AI proposal</span><button class="primary-btn small" id="applyDiff">Apply changes</button><button class="toolbar-btn small" id="rejectDiff">Reject</button></div><div class="diff-view">${rows}</div>`;}
+async function execute(){syncEditor();const f=current();if(!f){toast('Upload or open a file first');return;}if(f.language!=='python'){state.lastOutput={ok:false,stderr:'Live execution currently supports Python files.'};renderBottom('output');return;} state.running=true;setStatus('Running…','running');$('runBtn').disabled=true;$('stopBtn').disabled=false;state.lastOutput=null;renderBottom('output');try{const c=new AbortController();state.abort=c;const res=await fetch('/execute/',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code:f.content,filename:f.name}),signal:c.signal});const data=await res.json();if(!res.ok)throw new Error(data.detail||'Execution failed');state.lastOutput=data;addHistory(data.ok?'Run passed':'Run failed',f.name);setStatus(data.ok?'Verified':'Runtime error',data.ok?'ready':'error');renderBottom('output');if(data.stderr){const line=parseTraceLine(data.stderr);if(line&&state.editor)state.editor.revealLineInCenter(line);}}catch(e){if(e.name!=='AbortError'){state.lastOutput={ok:false,stderr:e.message};setStatus('Execution failed','error');renderBottom('output');}}finally{state.running=false;$('runBtn').disabled=false;$('stopBtn').disabled=true;}}
+function parseTraceLine(s){const m=String(s).match(/line (\d+)/);return m?Number(m[1]):null;}
+function scheduleLive(){clearTimeout(state.timer);if(!$('liveToggle').checked)return;state.timer=setTimeout(()=>execute(),state.debounce);}
+async function ai(mode='analyze',prompt=''){syncEditor();const f=current();if(!f){toast('Upload or open a file first');return;} addAiMessage('user',prompt||({analyze:'Analyze this code',fix:'Find and fix the bugs',improve:'Improve this code without changing intended behavior',refactor:'Refactor this code safely',optimize:'Optimize this code',security:'Perform a security review',tests:'Generate tests for this code'}[mode]||'Analyze this code')); addAiMessage('progress',`● ${mode==='analyze'?'Analyzing':mode==='security'?'Scanning security':'Generating '+mode+' proposal'}…`);setStatus('AI working…','running');try{const res=await fetch('/debug/',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code:f.content,mode})});const data=await res.json();if(!res.ok)throw new Error(data.detail||'AI request failed');state.aiResult=data;addHistory('AI '+mode,f.name);const text=data.analysis||data.explanation||data.summary?.message||'Analysis complete.';addAiMessage('assistant',text);if(data.fixed_code&&['fix','improve','refactor','optimize','security'].includes(mode)){setBottom('diff');setStatus('AI proposal ready','ready');}else{setBottom('analysis');setStatus('Analysis complete','ready');}renderBottom(document.querySelector('.panel-tab.active')?.dataset.bottom||'analysis');}catch(e){addAiMessage('assistant','⚠ '+e.message);setStatus('AI failed','error');}}
+function addAiMessage(type,text){const chat=$('aiChat');const welcome=chat.querySelector('.ai-welcome');if(welcome)welcome.remove();const d=document.createElement('div');d.className='chat-msg '+type;d.innerHTML=type==='progress'?`<span class="pulse"></span>${esc(text)}`:`<div class="msg-label">${type==='user'?'You':'BugFalse AI'}</div><div>${esc(text)}</div>`;chat.appendChild(d);chat.scrollTop=chat.scrollHeight;}
+function applyAI(){const f=current(),r=state.aiResult;if(!f||!r?.fixed_code)return;state.history.unshift({time:new Date().toLocaleTimeString(),label:'AI changes applied',detail:f.name});f.content=r.fixed_code;f.dirty=true;state.editor.setValue(f.content);renderTabs();renderBottom('diff');scheduleLive();addAiMessage('assistant','✓ Changes applied. I will validate the updated file now.');}
+function rejectAI(){state.aiResult=null;renderBottom('diff');setStatus('AI proposal rejected','ready');}
+function downloadFile(){const f=current();if(!f){toast('Nothing to download');return;}const blob=new Blob([f.content],{type:'text/plain;charset=utf-8'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=f.name;a.click();URL.revokeObjectURL(a.href);addHistory('Downloaded file',f.name);}
+async function downloadProject(){if(!state.files.size){toast('No project files');return;}const zip=new JSZip();for(const f of state.files.values())zip.file(f.name,f.content);const blob=await zip.generateAsync({type:'blob'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='bugfalse-project.zip';a.click();URL.revokeObjectURL(a.href);}
+function toast(msg){let t=document.querySelector('.toast');if(!t){t=document.createElement('div');t.className='toast';document.body.appendChild(t);}t.textContent=msg;t.classList.add('show');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),2500);}
+function loadMonaco(){require.config({paths:{vs:'https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs'}});require(['vs/editor/editor.main'],()=>{state.monaco=monaco;state.editor=monaco.editor.create($('monaco'),{value:'',language:'python',theme:'vs-dark',automaticLayout:true,fontSize:14,lineHeight:22,fontFamily:'JetBrains Mono, SFMono-Regular, Consolas, monospace',minimap:{enabled:true},padding:{top:18,bottom:18},scrollBeyondLastLine:false,roundedSelection:false,renderWhitespace:'selection',smoothScrolling:true});state.editor.onDidChangeModelContent(()=>{syncEditor();updateCursor();scheduleLive();});state.editor.onDidChangeCursorPosition(updateCursor);});}
+function openSample(){openFile('main.py',SAMPLE);}
+function readFile(file){const reader=new FileReader();reader.onload=()=>openFile(file.name,String(reader.result));reader.readAsText(file);}
+function readProject(files){for(const f of files){if(f.size<2*1024*1024 && !f.name.includes('node_modules')){const reader=new FileReader();reader.onload=()=>openFile(f.webkitRelativePath||f.name,String(reader.result));reader.readAsText(f);}}}
+const commands=[['Analyze code','analyze'],['Fix current errors','fix'],['Improve code','improve'],['Refactor','refactor'],['Optimize','optimize'],['Security scan','security'],['Generate tests','tests'],['Run code','run'],['Download current file','download']];
+function renderCommands(filter=''){const list=$('commandList');list.innerHTML=commands.filter(x=>x[0].toLowerCase().includes(filter.toLowerCase())).map(x=>`<button class="command-item" data-command="${x[1]}"><span>✦</span>${x[0]}<kbd>↵</kbd></button>`).join('');}
+function init(){
+ loadMonaco(); renderCommands(); renderBottom('output');
+ $('uploadBtn').onclick=()=>$('fileInput').click();$('emptyUpload').onclick=()=>$('fileInput').click();$('fileInput').onchange=e=>{if(e.target.files[0])readFile(e.target.files[0]);e.target.value='';};$('projectUploadBtn').onclick=()=>$('projectInput').click();$('projectInput').onchange=e=>{readProject(e.target.files);e.target.value='';};$('emptySample').onclick=openSample;
+ $('runBtn').onclick=execute;$('stopBtn').onclick=()=>{if(state.abort)state.abort.abort();};$('downloadBtn').onclick=downloadFile;
+ document.querySelectorAll('[data-ai]').forEach(b=>b.onclick=()=>ai(b.dataset.ai));
+ document.querySelectorAll('.panel-tab').forEach(b=>b.onclick=()=>setBottom(b.dataset.bottom));
+ document.querySelectorAll('[data-suggestion]').forEach(b=>b.onclick=()=>{$('aiInput').value=b.dataset.suggestion;ai('analyze',b.dataset.suggestion);});
+ $('sendAi').onclick=()=>{const q=$('aiInput').value.trim();if(q){$('aiInput').value='';let mode='analyze';if(/improv/i.test(q))mode='improve';else if(/fix|bug|error/i.test(q))mode='fix';else if(/security|vulnerab/i.test(q))mode='security';ai(mode,q);}};
+ $('aiInput').onkeydown=e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();$('sendAi').click();}};
+ $('clearAiBtn').onclick=()=>$('aiChat').innerHTML='<div class="ai-welcome"><div class="welcome-icon">✦</div><h3>Your AI engineering copilot</h3><p>Ask me to find bugs, improve code, explain failures, or generate tests.</p></div>';
+ $('themeBtn').onclick=()=>{state.theme=state.theme==='dark'?'light':'dark';document.body.classList.toggle('light',state.theme==='light');if(state.editor)monaco.editor.setTheme(state.theme==='light'?'vs':'vs-dark');};
+ $('settingsBtn').onclick=()=>$('settingsModal').classList.remove('hidden');$('settingsLive').onchange=e=>$('liveToggle').checked=e.target.checked;$('liveToggle').onchange=e=>$('settingsLive').checked=e.target.checked;$('debounceSelect').onchange=e=>state.debounce=Number(e.target.value);$('minimapToggle').onchange=e=>state.editor?.updateOptions({minimap:{enabled:e.target.checked}});
+ $('commandBtn').onclick=()=>{$('commandModal').classList.remove('hidden');$('commandSearch').focus();};$('commandSearch').oninput=e=>renderCommands(e.target.value);
+ document.addEventListener('click',e=>{if(e.target.matches('[data-close]'))$(e.target.dataset.close).classList.add('hidden');if(e.target.id==='commandModal')e.target.classList.add('hidden');if(e.target.id==='settingsModal')e.target.classList.add('hidden');if(e.target.closest('[data-command]')){const c=e.target.closest('[data-command]').dataset.command;$('commandModal').classList.add('hidden');if(c==='run')execute();else if(c==='download')downloadFile();else ai(c);}});
+ $('bottomContent').addEventListener('click',e=>{const p=e.target.closest('[data-line]');if(p&&state.editor){state.editor.revealLineInCenter(Number(p.dataset.line));state.editor.setPosition({lineNumber:Number(p.dataset.line),column:1});state.editor.focus();}if(e.target.id==='applyDiff')applyAI();if(e.target.id==='rejectDiff')rejectAI();if(e.target.matches('[data-ai]'))ai(e.target.dataset.ai);});
+ $('fileTabs').addEventListener('click',e=>{const close=e.target.closest('[data-close-file]');if(close){const n=close.dataset.closeFile;state.files.delete(n);if(state.active===n){const next=[...state.files.keys()][0];if(next){state.active=next;const f=current();state.editor.setValue(f.content);monaco.editor.setModelLanguage(state.editor.getModel(),f.language);}else{state.active=null;$('editorEmpty').classList.remove('hidden');state.editor.setValue('');}}renderTabs();renderContext();return;}const tab=e.target.closest('[data-file]');if(tab){state.active=tab.dataset.file;const f=current();state.editor.setValue(f.content);monaco.editor.setModelLanguage(state.editor.getModel(),f.language);renderTabs();renderContext();scheduleLive();}});
+ window.addEventListener('dragover',e=>e.preventDefault());window.addEventListener('drop',e=>{e.preventDefault();if(e.dataTransfer.files.length)readFile(e.dataTransfer.files[0]);});
+ document.addEventListener('keydown',e=>{if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='k'){e.preventDefault();$('commandModal').classList.remove('hidden');$('commandSearch').focus();}if((e.metaKey||e.ctrlKey)&&e.key==='Enter'){e.preventDefault();execute();}if(e.key==='Escape')document.querySelectorAll('.modal:not(.hidden)').forEach(x=>x.classList.add('hidden'));});
 }
-
-// ── INPUT TABS ──
-function switchInputTab(tab) {
-  ['editor','import','history'].forEach(t => {
-    document.getElementById('view-' + t).style.display = 'none';
-    document.getElementById('tab-' + t).classList.remove('active');
-  });
-  document.getElementById('view-' + tab).style.display = 'flex';
-  document.getElementById('tab-' + tab).classList.add('active');
-}
-
-// ── CODE EDITOR ──
-let liveTimer = null;
-let executionController = null;
-let activeMode = 'analyze';
-let pendingAI = false;
-
-function onCodeChange() {
-  const ta = document.getElementById('codeInput');
-  const code = ta.value;
-  document.getElementById('charCount').textContent = code.length + ' chars';
-  updateLineNumbers();
-  document.getElementById('editorDot').className = 'dot warn';
-  syncActiveFile();
-  clearTimeout(liveTimer);
-  if (code.trim()) {
-    liveTimer = setTimeout(() => runCode(false), 750);
-  }
-}
-
-function syncActiveFile() {
-  if (activeFile === null || !openFiles[activeFile]) return;
-  openFiles[activeFile].content = document.getElementById('codeInput').value;
-  openFiles[activeFile].modified = true;
-}
-
-function updateLineNumbers() {
-  const ta = document.getElementById('codeInput');
-  const lines = ta.value.split('\n').length;
-  const ln = document.getElementById('lineNumbers');
-  ln.innerHTML = Array.from({length: lines}, (_, i) => `<span>${i+1}</span>`).join('');
-}
-
-function handleTab(e) {
-  if (e.key !== 'Tab') return;
-  e.preventDefault();
-  const ta = document.getElementById('codeInput');
-  const s = ta.selectionStart, end = ta.selectionEnd;
-  ta.value = ta.value.substring(0, s) + '    ' + ta.value.substring(end);
-  ta.selectionStart = ta.selectionEnd = s + 4;
-  onCodeChange();
-}
-
-function formatCode() {
-  const ta = document.getElementById('codeInput');
-  if (!ta.value.trim()) return;
-  // Basic auto-indent cleanup
-  const lines = ta.value.split('\n').map(l => l.replace(/\s+$/, ''));
-  ta.value = lines.join('\n');
-  onCodeChange();
-  showToast('Whitespace cleaned');
-}
-
-function loadSample() {
-  document.getElementById('codeInput').value = `def calculate_average(numbers):
-    total = 0
-    for n in numbers:
-        total += n
-    return total / len(numbers)  # ZeroDivisionError if empty
-
-class DataProcessor:
-    def __init__(self, data):
-        self.data = data
-        self.resultz = []  # typo-like name
-
-    def process(self):
-        for item in self.data:
-            if item > 0:
-                self.resultz.append(item * 2)
-            elif item = 0:  # SyntaxError: should be ==
-                self.resultz.append(0)
-
-    def get_results(self):
-        return self.resultz
-
-nums = [1, 2, 3, 4, 5]
-avg = calculate_average(nums)
-print(f"Average: {avg}")
-
-# Missing return type hints
-# No input validation
-unused_variable = "I'm never used"
-`;
-  onCodeChange();
-  showToast('Sample code loaded');
-}
-
-function clearAll() {
-  document.getElementById('codeInput').value = '';
-  document.getElementById('charCount').textContent = '0 chars';
-  document.getElementById('lineNumbers').innerHTML = '<span>1</span>';
-  document.getElementById('editorDot').className = 'dot';
-  hideResults();
-  document.getElementById('statsRow').style.display = 'none';
-  currentResults = null;
-  activeFile = null;
-  document.getElementById('panelFileName').textContent = 'code_input.py';
-  document.getElementById('executionSection').innerHTML = '';
-  document.getElementById('diffSection').innerHTML = '';
-}
-
-// ── FILE IMPORT ──
-function triggerFilePick() { document.getElementById('filePickerInput').click(); }
-
-function handleDragOver(e) { e.preventDefault(); document.getElementById('dropZone').classList.add('drag-over'); }
-function handleDragLeave() { document.getElementById('dropZone').classList.remove('drag-over'); }
-
-async function handleDrop(e) {
-  e.preventDefault();
-  document.getElementById('dropZone').classList.remove('drag-over');
-  await processFileList(e.dataTransfer.files);
-}
-
-async function handleFileInput(e) { await processFileList(e.target.files); }
-
-async function processFileList(fileList) {
-  const files = Array.from(fileList);
-  for (const f of files) {
-    if (f.name.endsWith('.zip')) {
-      await processZip(f);
-    } else if (f.name.endsWith('.py') || f.name.endsWith('.txt')) {
-      const content = await readText(f);
-      addOpenFile(f.name, content, f.size);
-    }
-  }
-  renderImportedList();
-  if (openFiles.length > 0) showToast(`${openFiles.length} file(s) imported`);
-}
-
-async function processZip(zipFile) {
-  const Zip = await loadJSZip();
-  const zip = await Zip.loadAsync(zipFile);
-  const promises = [];
-  zip.forEach((path, entry) => {
-    if (!entry.dir && (path.endsWith('.py') || path.endsWith('.txt'))) {
-      promises.push(entry.async('string').then(content => {
-        addOpenFile(path.split('/').pop(), content, content.length);
-      }));
-    }
-  });
-  await Promise.all(promises);
-}
-
-function readText(file) {
-  return new Promise((res) => {
-    const r = new FileReader();
-    r.onload = e => res(e.target.result);
-    r.readAsText(file);
-  });
-}
-
-function addOpenFile(name, content, size) {
-  const existing = openFiles.findIndex(f => f.name === name);
-  if (existing >= 0) openFiles[existing] = { name, content, size };
-  else openFiles.push({ name, content, size, selected: false, modified: false });
-}
-
-function renderImportedList() {
-  const list = document.getElementById('importedItems');
-  const wrapper = document.getElementById('importedList');
-  if (openFiles.length === 0) { wrapper.style.display = 'none'; return; }
-  wrapper.style.display = 'block';
-  list.innerHTML = openFiles.map((f, i) => `
-    <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);">
-      <input type="checkbox" id="fc-${i}" ${f.selected ? 'checked':''} onchange="openFiles[${i}].selected=this.checked" />
-      <label for="fc-${i}" style="flex:1;font-size:12px;cursor:pointer;">${f.name}</label>
-      <span style="font-size:10px;color:var(--muted);">${formatBytes(f.size)}</span>
-      <button onclick="openFiles.splice(${i},1);renderImportedList();" style="background:transparent;border:none;color:var(--text-dim);cursor:pointer;font-size:12px;">✕</button>
-    </div>
-  `).join('');
-}
-
-function loadSelectedToEditor() {
-  const selected = openFiles.filter(f => f.selected);
-  if (selected.length === 0) { showToast('Select at least one file'); return; }
-  if (selected.length === 1) {
-    activeFile = openFiles.indexOf(selected[0]);
-    document.getElementById('codeInput').value = selected[0].content;
-    document.getElementById('panelFileName').textContent = selected[0].name;
-    onCodeChange();
-  } else {
-    // Multi-file: concatenate with headers
-    document.getElementById('codeInput').value = selected.map(f => `# ── ${f.name} ──\n${f.content}`).join('\n\n');
-    document.getElementById('panelFileName').textContent = `${selected.length} files`;
-    onCodeChange();
-  }
-  renderFileTabs(selected);
-  document.getElementById('fileTree').classList.add('show');
-  renderFileTree();
-  switchInputTab('editor');
-  showToast('Loaded into editor');
-}
-
-function renderFileTabs(files) {
-  const bar = document.getElementById('fileTabs');
-  bar.innerHTML = files.map((f, i) => `
-    <div class="file-tab ${i===0?'active':''}" onclick="loadFileTab(${openFiles.indexOf(f)},this)">
-      <span>${f.name}</span>
-    </div>
-  `).join('');
-}
-
-function loadFileTab(idx, el) {
-  document.querySelectorAll('.file-tab').forEach(t => t.classList.remove('active'));
-  el.classList.add('active');
-  activeFile = idx;
-  document.getElementById('codeInput').value = openFiles[idx].content;
-  document.getElementById('panelFileName').textContent = openFiles[idx].name;
-  onCodeChange();
-}
-
-function renderFileTree() {
-  const items = document.getElementById('treeItems');
-  items.innerHTML = openFiles.map((f, i) => `
-    <div class="tree-item" onclick="loadFileFromTree(${i},this)">
-      <span class="fi">${f.name.endsWith('.py') ? '🐍' : '📄'}</span>
-      <span class="fname">${f.name}</span>
-      <span class="fsize">${formatBytes(f.size)}</span>
-    </div>
-  `).join('');
-}
-
-function loadFileFromTree(idx, el) {
-  document.querySelectorAll('.tree-item').forEach(t => t.classList.remove('active'));
-  el.classList.add('active');
-  activeFile = idx;
-  document.getElementById('codeInput').value = openFiles[idx].content;
-  document.getElementById('panelFileName').textContent = openFiles[idx].name;
-  onCodeChange();
-}
-
-function clearFiles() {
-  openFiles = [];
-  document.getElementById('fileTree').classList.remove('show');
-  document.getElementById('fileTabs').innerHTML = '';
-  renderImportedList();
-}
-
-function formatBytes(b) {
-  if (b < 1024) return b + ' B';
-  if (b < 1024*1024) return (b/1024).toFixed(1) + ' KB';
-  return (b/1024/1024).toFixed(1) + ' MB';
-}
-
-// ── SETTINGS ──
-function toggleSettings() {
-  settingsOpen = !settingsOpen;
-  document.getElementById('settingsPanel').classList.toggle('open', settingsOpen);
-}
-function toggleOpt(btn, key) {
-  btn.classList.toggle('on');
-  if (key === 'live') return;
-  if (key === 'lines') {
-    const show = btn.classList.contains('on');
-    document.getElementById('lineNumbers').style.display = show ? 'block' : 'none';
-  }
-}
-document.addEventListener('click', e => {
-  if (!e.target.closest('.settings-wrap')) {
-    settingsOpen = false;
-    const p = document.getElementById('settingsPanel');
-    if (p) p.classList.remove('open');
-  }
-});
-
-// ── OUTPUT ──
-function switchOutput(val) {
-  ['issuesSection','executionSection','diffSection','analysisSection','fixedSection','improvementsSection'].forEach(id => {
-    const el = document.getElementById(id); if (el) el.style.display = 'none';
-  });
-  const map = { issues:'issuesSection', execution:'executionSection', diff:'diffSection', analysis:'analysisSection', fixed:'fixedSection', improvements:'improvementsSection' };
-  if (map[val]) document.getElementById(map[val]).style.display = 'block';
-}
-
-function hideResults() {
-  document.getElementById('emptyState').style.display = 'flex';
-  document.getElementById('loadingState').style.display = 'none';
-  document.getElementById('results').style.display = 'none';
-  setProgressBar(false);
-}
-
-function setProgressBar(active) {
-  document.getElementById('progressBar').classList.toggle('active', active);
-}
-
-function showToast(msg, dur = 2200) {
-  const t = document.getElementById('toast');
-  t.textContent = msg; t.classList.add('show');
-  setTimeout(() => t.classList.remove('show'), dur);
-}
-
-// ── LIVE EXECUTION ──
-async function runCode(manual = false) {
-  const code = document.getElementById('codeInput').value;
-  if (!code.trim()) return;
-  if (!manual && !document.getElementById('liveToggle')?.checked && !code.includes('print(')) return;
-  if (executionController) executionController.abort();
-  executionController = new AbortController();
-  switchOutput('execution');
-  const section = document.getElementById('executionSection');
-  section.innerHTML = `<div class="live-output"><div class="live-output-head"><span>Live Output</span><span class="dot"></span></div><pre>Running ${escHtml(document.getElementById('panelFileName').textContent)}…</pre></div>`;
-  document.getElementById('statusDot').className = 'dot';
-  document.getElementById('statusLabel').textContent = 'running…';
-  try {
-    const res = await fetch('/execute/', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({code, filename:document.getElementById('panelFileName').textContent}), signal:executionController.signal });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.detail || 'Execution failed');
-    const combined = [data.stdout, data.stderr].filter(Boolean).join(data.stdout && data.stderr ? '\n' : '');
-    section.innerHTML = `<div class="live-output"><div class="live-output-head"><span>Live Output</span><span>${data.ok ? '✓ passed' : '✕ failed'}</span></div><pre>${escHtml(combined || '(no output)')}</pre><div class="run-meta"><span class="${data.ok?'ok':'err'}">${data.ok?'Process exited with 0':'Process exited with '+(data.exit_code ?? 'error')}</span><span>${data.duration_ms} ms</span>${data.timed_out?'<span class="err">timeout</span>':''}</div></div>`;
-    document.getElementById('statusDot').className = data.ok ? 'dot ok' : 'dot err';
-    document.getElementById('statusLabel').textContent = data.ok ? 'run passed' : 'runtime error';
-  } catch (err) {
-    if (err.name === 'AbortError') return;
-    section.innerHTML = `<div class="error-item"><div><div class="error-line">Execution Error</div><div class="error-msg">${escHtml(err.message)}</div></div></div>`;
-    document.getElementById('statusDot').className = 'dot err';
-    document.getElementById('statusLabel').textContent = 'execution error';
-  }
-}
-
-// ── AI ACTIONS ──
-async function runAI(mode) {
-  const code = document.getElementById('codeInput').value;
-  if (!code.trim()) { showToast('⚠ No code to improve'); return; }
-  if (pendingAI) return;
-  pendingAI = true; activeMode = mode;
-  switchOutput('diff');
-  const section = document.getElementById('diffSection');
-  section.innerHTML = `<div class="ai-progress"><div class="ai-progress-row active">● Analyzing current code</div><div class="ai-progress-row">○ Generating ${mode} changes</div><div class="ai-progress-row">○ Preparing reviewable diff</div><div class="ai-progress-row">○ Waiting for verification</div></div>`;
-  document.getElementById('statusDot').className = 'dot'; document.getElementById('statusLabel').textContent = mode + '…';
-  try {
-    const res = await fetch('/debug/', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({code, mode}) });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.detail || data.error || `API ${res.status}`);
-    if (data.error) throw new Error(data.error);
-    currentResults = data;
-    const revised = data.fixed_code || code;
-    const changed = revised !== code;
-    section.innerHTML = `<div class="ai-progress"><div class="ai-progress-row done">✓ Current code analyzed</div><div class="ai-progress-row done">✓ ${mode} proposal generated</div><div class="ai-progress-row done">✓ Reviewable diff ready</div><div class="ai-progress-row">○ Not yet verified — run the code after applying</div></div><div class="diff-box" style="margin-top:12px"><div class="diff-side"><h4>Current</h4><pre>${escHtml(code)}</pre></div><div class="diff-side"><h4>Proposed</h4><pre>${escHtml(revised)}</pre></div></div><div class="sticky-actions"><button class="btn btn-ai" ${changed?'':'disabled'} onclick="applyAIChange()">✓ Apply Changes</button><button class="btn btn-ghost" onclick="downloadText(${JSON.stringify(revised)}, 'bugfalse-${mode}.py')">↓ Download Proposal</button><button class="btn btn-ghost" onclick="switchOutput('analysis')">View Analysis</button></div>`;
-    document.getElementById('analysisSection').innerHTML = `<div class="explain-text">${escHtml(data.analysis || 'No additional analysis.')}</div>`;
-    renderResults(data, code);
-    switchOutput('diff');
-    document.getElementById('statusDot').className = 'dot ok'; document.getElementById('statusLabel').textContent = changed ? 'proposal ready' : 'no changes needed';
-  } catch (err) {
-    section.innerHTML = `<div class="error-item"><div><div class="error-line">AI Error</div><div class="error-msg">${escHtml(err.message)}</div></div></div>`;
-    document.getElementById('statusDot').className = 'dot err'; document.getElementById('statusLabel').textContent = 'AI error';
-  } finally { pendingAI = false; }
-}
-
-function applyAIChange() {
-  const revised = currentResults?.fixed_code;
-  if (!revised) return;
-  const before = document.getElementById('codeInput').value;
-  if (before === revised) { showToast('No changes to apply'); return; }
-  if (!confirm('Apply the AI changes to the editor? Your current version will remain available in browser history.')) return;
-  document.getElementById('codeInput').value = revised;
-  onCodeChange();
-  switchOutput('execution');
-  showToast('AI changes applied — validating…');
-  runCode(true);
-}
-
-function downloadText(text, filename) {
-  const blob = new Blob([text], {type:'text/plain;charset=utf-8'});
-  const url = URL.createObjectURL(blob); const a = document.createElement('a');
-  a.href = url; a.download = filename; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
-}
-
-function downloadCurrentFile() {
-  const name = document.getElementById('panelFileName').textContent || 'bugfalse-code.py';
-  const safe = name === 'debug_output' ? 'bugfalse-code.py' : name;
-  downloadText(document.getElementById('codeInput').value, safe);
-  showToast('File downloaded ✓');
-}
-
-async function downloadProject() {
-  if (!openFiles.length) { downloadCurrentFile(); return; }
-  try {
-    const Zip = await loadJSZip(); const zip = new Zip();
-    openFiles.forEach(f => zip.file(f.name, f.content));
-    const blob = await zip.generateAsync({type:'blob'});
-    const url = URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='bugfalse-project.zip'; a.click(); URL.revokeObjectURL(url);
-    showToast('Project ZIP downloaded ✓');
-  } catch (e) { showToast('Could not build project ZIP'); }
-}
-
-// ── DEBUG ──
-async function runDebug() {
-  const code = document.getElementById('codeInput').value.trim();
-  if (!code) { showToast('⚠ No code to debug'); return; }
-
-  const btn = document.getElementById('debugBtn');
-  btn.disabled = true;
-  document.getElementById('statusDot').className = 'dot';
-  document.getElementById('statusLabel').textContent = 'scanning…';
-  document.getElementById('emptyState').style.display = 'none';
-  document.getElementById('results').style.display = 'none';
-  document.getElementById('loadingState').style.display = 'flex';
-  document.getElementById('statsRow').style.display = 'none';
-  setProgressBar(true);
-
-  const msgs = ['Scanning code…','Detecting issues…','Analyzing logic…','Generating fixes…'];
-  let mi = 0;
-  const msgTimer = setInterval(() => { document.getElementById('loadingMsg').textContent = msgs[++mi % msgs.length]; }, 1400);
-
-  const maxTok = parseInt(document.getElementById('maxTokens').value) || 1200;
-  const severityFilter = document.getElementById('severityFilter').value;
-
-  const prompt = `You are an expert Python debugger. Analyze the following Python code and return a JSON object (no markdown, no backticks, raw JSON only) with this exact schema:
-{
-  "issues": [{"line": <number or null>, "severity": "error"|"warning"|"info", "type": <string>, "message": <string>}],
-  "analysis": <string — 2-4 sentences explaining overall code quality>,
-  "fixed_code": <string — corrected Python code>,
-  "improvements": [<string>],
-  "score": <integer 0-100>,
-  "summary": {"errors": <int>, "warnings": <int>, "lines": <int>}
-}
-
-Python code to analyze:
-\`\`\`python
-${code}
-\`\`\`
-${severityFilter !== 'all' ? `\nOnly include issues with severity "${severityFilter === 'error' ? 'error' : 'error" or "warning'}".` : ''}`;
-
-  try {
-    const res = await fetch('/debug/', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ code: code })
-    });
-
-    if (!res.ok) {
-      const errData = await res.json().catch(() => ({}));
-      throw new Error(errData?.detail || errData?.error || `API ${res.status}: ${res.statusText}`);
-    }
-    const parsed = await res.json();
-    if (parsed.error) throw new Error(parsed.error);
-
-    currentResults = parsed;
-    renderResults(parsed, code);
-    switchOutput('issues');
-    addToHistory(code, parsed);
-  } catch (err) {
-    document.getElementById('loadingState').style.display = 'none';
-    document.getElementById('statusDot').className = 'dot err';
-    document.getElementById('statusLabel').textContent = 'error';
-    const issSection = document.getElementById('issuesSection');
-    issSection.innerHTML = `<div class="error-item"><div><div class="error-line">API Error</div><div class="error-msg">${err.message}</div></div></div>`;
-    document.getElementById('results').style.display = 'block';
-    setProgressBar(false);
-  } finally {
-    clearInterval(msgTimer);
-    btn.disabled = false;
-  }
-}
-
-function renderResults(data, originalCode) {
-  document.getElementById('loadingState').style.display = 'none';
-  document.getElementById('results').style.display = 'block';
-  setProgressBar(false);
-
-  const errs = (data.issues || []).filter(i => i.severity === 'error').length;
-  const warns = (data.issues || []).filter(i => i.severity === 'warning').length;
-  const lines = data.summary?.lines || originalCode.split('\n').length;
-  const score = data.score ?? '—';
-
-  document.getElementById('statErrors').textContent = errs;
-  document.getElementById('statWarns').textContent = warns;
-  document.getElementById('statLines').textContent = lines;
-  document.getElementById('statScore').textContent = typeof score === 'number' ? score + '/100' : score;
-  document.getElementById('statsRow').style.display = 'flex';
-
-  document.getElementById('statusDot').className = errs > 0 ? 'dot err' : warns > 0 ? 'dot warn' : 'dot ok';
-  document.getElementById('statusLabel').textContent = errs > 0 ? `${errs} error(s)` : warns > 0 ? `${warns} warning(s)` : 'clean';
-
-  // Issues
-  const iss = document.getElementById('issuesSection');
-  if (!data.issues || data.issues.length === 0) {
-    iss.innerHTML = '<div class="no-errors">✓ No issues found — code looks clean!</div>';
-  } else {
-    iss.innerHTML = data.issues.map(i => `
-      <div class="error-item ${i.severity === 'warning' ? 'warn' : ''}">
-        <div style="padding-top:2px">
-          <div class="error-line">${i.severity === 'error' ? '✕' : '△'} ${i.line ? 'Line ' + i.line : 'General'}</div>
-        </div>
-        <div>
-          <div class="error-msg">${escHtml(i.message)}</div>
-          <div class="error-type">${escHtml(i.type || '')}</div>
-        </div>
-      </div>
-    `).join('');
-  }
-
-  // Analysis
-  document.getElementById('analysisSection').innerHTML = `
-    <div class="explain-text">${escHtml(data.analysis || 'No analysis available.')}</div>`;
-
-  // Fixed code
-  document.getElementById('fixedSection').innerHTML = `
-    <div class="code-block">
-      <div class="code-block-header">
-        <span>fixed_code.py</span>
-        <button class="btn btn-ghost" style="padding:4px 10px;font-size:10px;" onclick="copyFixed()">Copy</button>
-      </div>
-      <pre id="fixedPre">${escHtml(data.fixed_code || originalCode)}</pre>
-    </div>`;
-
-  // Improvements
-  const imps = data.improvements || [];
-  document.getElementById('improvementsSection').innerHTML = imps.length === 0
-    ? '<div class="no-errors">No additional improvements suggested.</div>'
-    : imps.map((imp, i) => `
-        <div class="error-item" style="border-left-color:var(--accent2);background:rgba(0,150,255,0.04)">
-          <div style="padding-top:2px"><div class="error-line" style="color:var(--accent2)">${i+1}</div></div>
-          <div class="error-msg">${escHtml(imp)}</div>
-        </div>`).join('');
-}
-
-function copyFixed() {
-  const pre = document.getElementById('fixedPre');
-  if (pre) { navigator.clipboard.writeText(pre.textContent); showToast('Fixed code copied ✓'); }
-}
-
-// ── HISTORY ──
-function addToHistory(code, results) {
-  const entry = {
-    id: Date.now(),
-    time: new Date().toLocaleTimeString(),
-    name: document.getElementById('panelFileName').textContent,
-    errors: (results.issues || []).filter(i => i.severity === 'error').length,
-    code, results
-  };
-  history.unshift(entry);
-  if (history.length > 20) history.pop();
-  renderHistory();
-}
-
-function renderHistory() {
-  const list = document.getElementById('historyList');
-  if (history.length === 0) {
-    list.innerHTML = '<div style="text-align:center;color:var(--muted);font-size:12px;padding:40px 0;">No debug sessions yet</div>';
-    return;
-  }
-  list.innerHTML = history.map((h) => `
-    <div class="history-item" onclick="restoreHistory(${h.id})">
-      <span class="hi-icon">${h.errors > 0 ? '🔴' : '🟢'}</span>
-      <div class="hi-meta">
-        <div class="hi-name">${escHtml(h.name)}</div>
-        <div class="hi-time">${h.time}</div>
-      </div>
-      <span class="hi-badge ${h.errors > 0 ? 'err' : 'ok'}">${h.errors > 0 ? h.errors + ' err' : 'clean'}</span>
-    </div>
-  `).join('');
-}
-
-function restoreHistory(id) {
-  const entry = history.find(h => h.id === id);
-  if (!entry) return;
-  document.getElementById('codeInput').value = entry.code;
-  document.getElementById('panelFileName').textContent = entry.name;
-  onCodeChange();
-  renderResults(entry.results, entry.code);
-  switchInputTab('editor');
-  showToast('Session restored');
-}
-
-// ── UTILS ──
-function escHtml(s) {
-  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
-
-document.addEventListener('keydown', e => {
-  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); runDebug(); }
-  if ((e.ctrlKey || e.metaKey) && e.key === 's') { e.preventDefault(); downloadCurrentFile(); }
-});
-
-// Init
-(function initPage() {
-  document.getElementById('emptyState').style.display = 'flex';
-})();
-updateLineNumbers();
+init();
 </script>
 </body>
 </html>
