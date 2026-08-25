@@ -13,7 +13,7 @@
     <div class="brand"><span class="brand-mark">B</span><span>BugFalse</span><span class="brand-sub">AI ENGINEERING</span></div>
     <button class="header-file" id="fileMenuBtn">File <span>⌄</span></button>
     <div class="workspace-name" id="workspaceName">Untitled workspace</div>
-    <div class="top-actions"><button class="top-btn" id="themeBtn" title="Theme">☼</button><button class="top-btn" id="settingsBtn" title="Settings">⚙</button></div>
+    <div class="top-actions"><button class="top-btn" id="sidebarToggle" title="Toggle Explorer" aria-label="Toggle Explorer">☰</button><button class="top-btn" id="themeBtn" title="Theme">☼</button><button class="top-btn" id="settingsBtn" title="Settings">⚙</button></div>
     <div class="file-menu hidden" id="fileMenu">
       <button data-file-action="new">New File</button>
       <button data-file-action="open">Open File</button>
@@ -90,7 +90,7 @@
       </div>
 
       <section class="bottom-panel">
-        <div class="panel-tabs">
+        <div class="panel-tabs"><button class="panel-collapse" id="bottomToggle" title="Collapse output panel" aria-label="Collapse output panel">⌄</button>
           <button class="panel-tab active" data-panel="output">Output</button>
           <button class="panel-tab" data-panel="problems">Problems <b id="problemCount">0</b></button>
           <button class="panel-tab" data-panel="tests">Tests</button>

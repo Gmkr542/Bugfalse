@@ -143,3 +143,13 @@ Other languages keep the normal editor + output workflow. HTML is intentionally 
 ## File controls
 
 Use **File** in the top header for New File, Open File, Open Folder, Rename, Save, Download, and Delete. New files default to `untitled.txt`; renaming a file changes the detected language and workspace behavior.
+
+## Workspace layout refinement
+
+The UI prioritizes the coding surface. Explorer, AI, and output panels are secondary and can be collapsed so the editor/web workspace expands to use the freed viewport. In HTML/web mode, the editor and live web output remain side-by-side with a draggable divider; the rendered site receives the larger share of the workspace by default.
+
+- Explorer: collapsible from the top bar.
+- Output/Problems/Tests: collapsible from the panel header.
+- AI: opens as an overlay/drawer so it does not permanently shrink the coding surface.
+- HTML/web mode: editor + live browser output, with a draggable split and responsive fallback.
+- The layout is responsive and reflows on smaller screens.
