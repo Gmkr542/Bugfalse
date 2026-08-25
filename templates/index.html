@@ -366,6 +366,23 @@
     }
     body.light textarea { color: #1a6040; }
     body.light .code-block pre { color: #1a6040; }
+
+    .btn-ai { background: rgba(162,89,255,.09); border:1px solid rgba(162,89,255,.35); color:#c59bff; }
+    .btn-ai:hover { border-color:var(--accent3); color:#fff; background:rgba(162,89,255,.16); }
+    .btn:disabled { opacity:.45; cursor:not-allowed; }
+    .live-output { background:#070a0d; border:1px solid var(--border); border-radius:8px; overflow:hidden; }
+    .live-output-head { display:flex; justify-content:space-between; align-items:center; padding:10px 12px; border-bottom:1px solid var(--border); font-size:10px; color:var(--text-dim); text-transform:uppercase; letter-spacing:1.5px; }
+    .live-output pre { margin:0; padding:14px; white-space:pre-wrap; word-break:break-word; color:#cfe7dc; font:12px/1.65 var(--mono); min-height:150px; }
+    .run-meta { display:flex; gap:8px; flex-wrap:wrap; padding:9px 12px; border-top:1px solid var(--border); color:var(--muted); font-size:10px; }
+    .run-meta .ok { color:var(--ok); } .run-meta .err { color:var(--err); }
+    .diff-box { display:grid; grid-template-columns:1fr 1fr; gap:1px; background:var(--border); border:1px solid var(--border); border-radius:8px; overflow:hidden; }
+    .diff-side { background:#090d11; min-width:0; } .diff-side h4 { padding:9px 12px; border-bottom:1px solid var(--border); color:var(--text-dim); font-size:10px; letter-spacing:1.4px; text-transform:uppercase; }
+    .diff-side pre { margin:0; padding:12px; max-height:420px; overflow:auto; white-space:pre-wrap; font:11px/1.6 var(--mono); color:var(--text); }
+    .ai-progress { padding:14px; border:1px solid var(--border); border-radius:8px; background:rgba(162,89,255,.04); }
+    .ai-progress-row { display:flex; gap:9px; align-items:center; padding:5px 0; color:var(--text-dim); font-size:11px; }
+    .ai-progress-row.active { color:var(--accent3); } .ai-progress-row.done { color:var(--ok); }
+    .sticky-actions { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
+    @media (max-width: 980px) { .main { grid-template-columns:1fr; } .panel-left { border-right:0; border-bottom:1px solid var(--border); min-height:65vh; } .panel { min-height:50vh; } .diff-box { grid-template-columns:1fr; } }
   </style>
 </head>
 <body>
@@ -439,12 +456,19 @@
 
         <!-- Controls -->
         <div class="controls">
-          <button class="btn btn-debug" id="debugBtn" onclick="runDebug()">⚡ Debug Code</button>
+          <button class="btn btn-debug" id="debugBtn" onclick="runDebug()">⚡ Analyze</button>
+          <button class="btn btn-ai" onclick="runAI('fix')">✦ Fix</button>
+          <button class="btn btn-ai" onclick="runAI('improve')">↗ Improve</button>
+          <button class="btn btn-ghost" onclick="runCode(true)">▶ Run</button>
           <button class="btn btn-ghost" onclick="loadSample()">Sample</button>
           <button class="btn btn-ghost" onclick="formatCode()">Format</button>
           <div class="settings-wrap">
             <button class="btn btn-ghost" onclick="toggleSettings()">⚙ Settings</button>
             <div id="settingsPanel">
+              <div class="settings-row">
+                <label>Live output</label>
+                <button class="toggle on" id="liveToggle" onclick="toggleOpt(this,'live')"></button>
+              </div>
               <div class="settings-row">
                 <label>Auto-format on paste</label>
                 <button class="toggle" id="tog-format" onclick="toggleOpt(this)"></button>
@@ -471,6 +495,7 @@
               </div>
             </div>
           </div>
+          <button class="btn btn-ghost" onclick="downloadCurrentFile()">↓ Download</button>
           <button class="btn btn-danger" onclick="clearAll()">Clear</button>
           <span class="char-count" id="charCount">0 chars</span>
         </div>
@@ -501,6 +526,7 @@
           <div style="font-size:10px;letter-spacing:1.5px;color:var(--muted);text-transform:uppercase;padding:12px 0 8px;">Imported Files</div>
           <div id="importedItems"></div>
           <button class="btn btn-ghost" style="margin-top:10px;width:100%;justify-content:center;" onclick="loadSelectedToEditor()">→ Load selected into editor</button>
+          <button class="btn btn-ghost" style="margin-top:8px;width:100%;justify-content:center;" onclick="downloadProject()">↓ Download project ZIP</button>
         </div>
       </div>
 
@@ -523,6 +549,8 @@
         <div class="output-menu-wrap">
           <select id="outputMenu" class="output-menu" onchange="switchOutput(this.value)">
             <option value="issues">Issues</option>
+            <option value="execution">Live Output</option>
+            <option value="diff">AI Diff</option>
             <option value="analysis">Analysis</option>
             <option value="fixed">Fixed Code</option>
             <option value="improvements">Improvements</option>
@@ -565,6 +593,8 @@
         </div>
         <div id="results" style="display:none">
           <div class="output-section" id="issuesSection"></div>
+          <div class="output-section" id="executionSection" style="display:none"></div>
+          <div class="output-section" id="diffSection" style="display:none"></div>
           <div class="output-section" id="analysisSection" style="display:none"></div>
           <div class="output-section" id="fixedSection" style="display:none"></div>
           <div class="output-section" id="improvementsSection" style="display:none"></div>
@@ -616,12 +646,28 @@ function switchInputTab(tab) {
 }
 
 // ── CODE EDITOR ──
+let liveTimer = null;
+let executionController = null;
+let activeMode = 'analyze';
+let pendingAI = false;
+
 function onCodeChange() {
   const ta = document.getElementById('codeInput');
   const code = ta.value;
   document.getElementById('charCount').textContent = code.length + ' chars';
   updateLineNumbers();
   document.getElementById('editorDot').className = 'dot warn';
+  syncActiveFile();
+  clearTimeout(liveTimer);
+  if (code.trim()) {
+    liveTimer = setTimeout(() => runCode(false), 750);
+  }
+}
+
+function syncActiveFile() {
+  if (activeFile === null || !openFiles[activeFile]) return;
+  openFiles[activeFile].content = document.getElementById('codeInput').value;
+  openFiles[activeFile].modified = true;
 }
 
 function updateLineNumbers() {
@@ -693,6 +739,10 @@ function clearAll() {
   hideResults();
   document.getElementById('statsRow').style.display = 'none';
   currentResults = null;
+  activeFile = null;
+  document.getElementById('panelFileName').textContent = 'code_input.py';
+  document.getElementById('executionSection').innerHTML = '';
+  document.getElementById('diffSection').innerHTML = '';
 }
 
 // ── FILE IMPORT ──
@@ -748,7 +798,7 @@ function readText(file) {
 function addOpenFile(name, content, size) {
   const existing = openFiles.findIndex(f => f.name === name);
   if (existing >= 0) openFiles[existing] = { name, content, size };
-  else openFiles.push({ name, content, size, selected: false });
+  else openFiles.push({ name, content, size, selected: false, modified: false });
 }
 
 function renderImportedList() {
@@ -770,6 +820,7 @@ function loadSelectedToEditor() {
   const selected = openFiles.filter(f => f.selected);
   if (selected.length === 0) { showToast('Select at least one file'); return; }
   if (selected.length === 1) {
+    activeFile = openFiles.indexOf(selected[0]);
     document.getElementById('codeInput').value = selected[0].content;
     document.getElementById('panelFileName').textContent = selected[0].name;
     onCodeChange();
@@ -798,6 +849,7 @@ function renderFileTabs(files) {
 function loadFileTab(idx, el) {
   document.querySelectorAll('.file-tab').forEach(t => t.classList.remove('active'));
   el.classList.add('active');
+  activeFile = idx;
   document.getElementById('codeInput').value = openFiles[idx].content;
   document.getElementById('panelFileName').textContent = openFiles[idx].name;
   onCodeChange();
@@ -817,6 +869,7 @@ function renderFileTree() {
 function loadFileFromTree(idx, el) {
   document.querySelectorAll('.tree-item').forEach(t => t.classList.remove('active'));
   el.classList.add('active');
+  activeFile = idx;
   document.getElementById('codeInput').value = openFiles[idx].content;
   document.getElementById('panelFileName').textContent = openFiles[idx].name;
   onCodeChange();
@@ -842,6 +895,7 @@ function toggleSettings() {
 }
 function toggleOpt(btn, key) {
   btn.classList.toggle('on');
+  if (key === 'live') return;
   if (key === 'lines') {
     const show = btn.classList.contains('on');
     document.getElementById('lineNumbers').style.display = show ? 'block' : 'none';
@@ -857,10 +911,10 @@ document.addEventListener('click', e => {
 
 // ── OUTPUT ──
 function switchOutput(val) {
-  ['issuesSection','analysisSection','fixedSection','improvementsSection'].forEach(id => {
-    document.getElementById(id).style.display = 'none';
+  ['issuesSection','executionSection','diffSection','analysisSection','fixedSection','improvementsSection'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.style.display = 'none';
   });
-  const map = { issues:'issuesSection', analysis:'analysisSection', fixed:'fixedSection', improvements:'improvementsSection' };
+  const map = { issues:'issuesSection', execution:'executionSection', diff:'diffSection', analysis:'analysisSection', fixed:'fixedSection', improvements:'improvementsSection' };
   if (map[val]) document.getElementById(map[val]).style.display = 'block';
 }
 
@@ -879,6 +933,100 @@ function showToast(msg, dur = 2200) {
   const t = document.getElementById('toast');
   t.textContent = msg; t.classList.add('show');
   setTimeout(() => t.classList.remove('show'), dur);
+}
+
+// ── LIVE EXECUTION ──
+async function runCode(manual = false) {
+  const code = document.getElementById('codeInput').value;
+  if (!code.trim()) return;
+  if (!manual && !document.getElementById('liveToggle')?.checked && !code.includes('print(')) return;
+  if (executionController) executionController.abort();
+  executionController = new AbortController();
+  switchOutput('execution');
+  const section = document.getElementById('executionSection');
+  section.innerHTML = `<div class="live-output"><div class="live-output-head"><span>Live Output</span><span class="dot"></span></div><pre>Running ${escHtml(document.getElementById('panelFileName').textContent)}…</pre></div>`;
+  document.getElementById('statusDot').className = 'dot';
+  document.getElementById('statusLabel').textContent = 'running…';
+  try {
+    const res = await fetch('/execute/', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({code, filename:document.getElementById('panelFileName').textContent}), signal:executionController.signal });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'Execution failed');
+    const combined = [data.stdout, data.stderr].filter(Boolean).join(data.stdout && data.stderr ? '\n' : '');
+    section.innerHTML = `<div class="live-output"><div class="live-output-head"><span>Live Output</span><span>${data.ok ? '✓ passed' : '✕ failed'}</span></div><pre>${escHtml(combined || '(no output)')}</pre><div class="run-meta"><span class="${data.ok?'ok':'err'}">${data.ok?'Process exited with 0':'Process exited with '+(data.exit_code ?? 'error')}</span><span>${data.duration_ms} ms</span>${data.timed_out?'<span class="err">timeout</span>':''}</div></div>`;
+    document.getElementById('statusDot').className = data.ok ? 'dot ok' : 'dot err';
+    document.getElementById('statusLabel').textContent = data.ok ? 'run passed' : 'runtime error';
+  } catch (err) {
+    if (err.name === 'AbortError') return;
+    section.innerHTML = `<div class="error-item"><div><div class="error-line">Execution Error</div><div class="error-msg">${escHtml(err.message)}</div></div></div>`;
+    document.getElementById('statusDot').className = 'dot err';
+    document.getElementById('statusLabel').textContent = 'execution error';
+  }
+}
+
+// ── AI ACTIONS ──
+async function runAI(mode) {
+  const code = document.getElementById('codeInput').value;
+  if (!code.trim()) { showToast('⚠ No code to improve'); return; }
+  if (pendingAI) return;
+  pendingAI = true; activeMode = mode;
+  switchOutput('diff');
+  const section = document.getElementById('diffSection');
+  section.innerHTML = `<div class="ai-progress"><div class="ai-progress-row active">● Analyzing current code</div><div class="ai-progress-row">○ Generating ${mode} changes</div><div class="ai-progress-row">○ Preparing reviewable diff</div><div class="ai-progress-row">○ Waiting for verification</div></div>`;
+  document.getElementById('statusDot').className = 'dot'; document.getElementById('statusLabel').textContent = mode + '…';
+  try {
+    const res = await fetch('/debug/', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({code, mode}) });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || data.error || `API ${res.status}`);
+    if (data.error) throw new Error(data.error);
+    currentResults = data;
+    const revised = data.fixed_code || code;
+    const changed = revised !== code;
+    section.innerHTML = `<div class="ai-progress"><div class="ai-progress-row done">✓ Current code analyzed</div><div class="ai-progress-row done">✓ ${mode} proposal generated</div><div class="ai-progress-row done">✓ Reviewable diff ready</div><div class="ai-progress-row">○ Not yet verified — run the code after applying</div></div><div class="diff-box" style="margin-top:12px"><div class="diff-side"><h4>Current</h4><pre>${escHtml(code)}</pre></div><div class="diff-side"><h4>Proposed</h4><pre>${escHtml(revised)}</pre></div></div><div class="sticky-actions"><button class="btn btn-ai" ${changed?'':'disabled'} onclick="applyAIChange()">✓ Apply Changes</button><button class="btn btn-ghost" onclick="downloadText(${JSON.stringify(revised)}, 'bugfalse-${mode}.py')">↓ Download Proposal</button><button class="btn btn-ghost" onclick="switchOutput('analysis')">View Analysis</button></div>`;
+    document.getElementById('analysisSection').innerHTML = `<div class="explain-text">${escHtml(data.analysis || 'No additional analysis.')}</div>`;
+    renderResults(data, code);
+    switchOutput('diff');
+    document.getElementById('statusDot').className = 'dot ok'; document.getElementById('statusLabel').textContent = changed ? 'proposal ready' : 'no changes needed';
+  } catch (err) {
+    section.innerHTML = `<div class="error-item"><div><div class="error-line">AI Error</div><div class="error-msg">${escHtml(err.message)}</div></div></div>`;
+    document.getElementById('statusDot').className = 'dot err'; document.getElementById('statusLabel').textContent = 'AI error';
+  } finally { pendingAI = false; }
+}
+
+function applyAIChange() {
+  const revised = currentResults?.fixed_code;
+  if (!revised) return;
+  const before = document.getElementById('codeInput').value;
+  if (before === revised) { showToast('No changes to apply'); return; }
+  if (!confirm('Apply the AI changes to the editor? Your current version will remain available in browser history.')) return;
+  document.getElementById('codeInput').value = revised;
+  onCodeChange();
+  switchOutput('execution');
+  showToast('AI changes applied — validating…');
+  runCode(true);
+}
+
+function downloadText(text, filename) {
+  const blob = new Blob([text], {type:'text/plain;charset=utf-8'});
+  const url = URL.createObjectURL(blob); const a = document.createElement('a');
+  a.href = url; a.download = filename; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+}
+
+function downloadCurrentFile() {
+  const name = document.getElementById('panelFileName').textContent || 'bugfalse-code.py';
+  const safe = name === 'debug_output' ? 'bugfalse-code.py' : name;
+  downloadText(document.getElementById('codeInput').value, safe);
+  showToast('File downloaded ✓');
+}
+
+async function downloadProject() {
+  if (!openFiles.length) { downloadCurrentFile(); return; }
+  try {
+    const Zip = await loadJSZip(); const zip = new Zip();
+    openFiles.forEach(f => zip.file(f.name, f.content));
+    const blob = await zip.generateAsync({type:'blob'});
+    const url = URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='bugfalse-project.zip'; a.click(); URL.revokeObjectURL(url);
+    showToast('Project ZIP downloaded ✓');
+  } catch (e) { showToast('Could not build project ZIP'); }
 }
 
 // ── DEBUG ──
@@ -935,6 +1083,7 @@ ${severityFilter !== 'all' ? `\nOnly include issues with severity "${severityFil
 
     currentResults = parsed;
     renderResults(parsed, code);
+    switchOutput('issues');
     addToHistory(code, parsed);
   } catch (err) {
     document.getElementById('loadingState').style.display = 'none';
@@ -1064,6 +1213,11 @@ function restoreHistory(id) {
 function escHtml(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
+
+document.addEventListener('keydown', e => {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); runDebug(); }
+  if ((e.ctrlKey || e.metaKey) && e.key === 's') { e.preventDefault(); downloadCurrentFile(); }
+});
 
 // Init
 (function initPage() {

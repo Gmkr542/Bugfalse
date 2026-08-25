@@ -9,7 +9,7 @@ from utils.parser import clean_json
 logger = logging.getLogger(__name__)
 
 
-def analyze_code(code, api_key=None, max_attempts=4, backoff_factor=1.0):
+def analyze_code(code, api_key=None, max_attempts=4, backoff_factor=1.0, mode="analyze"):
     token = api_key or GROQ_TOKEN
     if not token:
         return {"error": "Missing Groq API token. Set the GROQ_TOKEN environment variable or paste your key in the UI. Get one free at https://console.groq.com/keys"}
@@ -28,33 +28,29 @@ def analyze_code(code, api_key=None, max_attempts=4, backoff_factor=1.0):
             {
                 "role": "system",
                 "content": (
-                    "You are an expert code debugger. "
-                    "Return ONLY valid JSON with no explanation, no markdown, no code fences. "
-                    "Your entire response must be a single JSON object."
+                    "You are BugFalse, an expert software engineer. "
+                    "Return ONLY valid JSON with no markdown or code fences. "
+                    "Never claim code was executed unless execution evidence is supplied. "
+                    "Preserve behavior unless the requested mode explicitly calls for change."
                 )
             },
             {
                 "role": "user",
                 "content": (
-                    "Analyze this code and return ONLY this JSON structure:\n\n"
+                    f"Requested mode: {mode}.\n\n"
+                    "Analyze the code and return ONLY this JSON structure:\n\n"
                     "{\n"
-                    "  \"issues\": [\n"
-                    "    {\n"
-                    "      \"severity\": \"error\",\n"
-                    "      \"message\": \"\",\n"
-                    "      \"type\": \"\",\n"
-                    "      \"line\": null,\n"
-                    "      \"column\": null\n"
-                    "    }\n"
-                    "  ],\n"
+                    "  \"issues\": [{\"severity\": \"error|warning|info\", \"message\": \"\", \"type\": \"\", \"line\": null, \"column\": null}],\n"
                     "  \"has_errors\": false,\n"
                     "  \"analysis\": \"\",\n"
-                    "  \"fixed_code\": \"\",\n"
+                    "  \"fixed_code\": \"complete updated source code\",\n"
                     "  \"improvements\": [],\n"
                     "  \"score\": 80,\n"
-                    "  \"summary\": {\"errors\": 0, \"warnings\": 0, \"lines\": 0}\n"
+                    "  \"summary\": {\"errors\": 0, \"warnings\": 0, \"lines\": 0},\n"
+                    "  \"verification\": {\"status\": \"not_run\", \"notes\": \"\"}\n"
                     "}\n\n"
-                    f"Code to analyze:\n\n{code}"
+                    "For fix/improve/refactor/optimize modes, fixed_code must contain the full revised file, not a patch. "
+                    f"Source code:\n\n{code}"
                 )
             }
         ],

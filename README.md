@@ -131,3 +131,20 @@ curl http://127.0.0.1:5000/chatbot/history
 - **DNS errors** — Check internet access to `api.groq.com`
 - **Proxy** — Set `HTTP_PROXY` / `HTTPS_PROXY` environment variables
 
+
+## BugFalse Workspace Upgrade
+
+The workspace now supports a developer-first workflow:
+
+- live execution output while editing Python
+- debounced runtime validation
+- AI Analyze / Fix / Improve / Refactor / Optimize / Security modes
+- reviewable AI proposals before applying changes
+- downloadable current files and project ZIPs
+- drag-and-drop `.py`, `.txt`, and ZIP imports
+- execution errors surfaced in the live output panel
+- keyboard shortcuts: `Ctrl/Cmd+Enter` to analyze and `Ctrl/Cmd+S` to download
+
+### Execution safety
+
+The `/execute/` endpoint runs Python in a short-lived temporary directory with a strict timeout, bounded code/output sizes, isolated interpreter mode, and a restricted environment. This is a development-grade sandbox, not a substitute for a hardened container/VM isolation layer for hostile multi-tenant production workloads. For public production deployment, replace it with a dedicated sandbox worker (container/Firecracker/Kubernetes job) with CPU, memory, filesystem, process, and network isolation.

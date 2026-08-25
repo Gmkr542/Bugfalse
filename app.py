@@ -3,6 +3,7 @@ sys.stdout.reconfigure(encoding="utf-8")
 
 import logging
 import os
+import json
 from logging.handlers import RotatingFileHandler
 
 from fastapi import FastAPI, Request, Response
@@ -12,6 +13,7 @@ from fastapi.templating import Jinja2Templates
 
 from routes.debug import router as debug_router
 from routes.chatbot import router as chatbot_router
+from routes.execute import router as execute_router
 
 logging.basicConfig(
     level=os.getenv("LOG_LEVEL", "INFO").upper(),
@@ -67,6 +69,7 @@ app.mount(
 
 app.include_router(debug_router, prefix="/debug", tags=["Debug"])
 app.include_router(chatbot_router, prefix="/chatbot", tags=["Chatbot"])
+app.include_router(execute_router, prefix="/execute", tags=["Execution"])
 
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request):

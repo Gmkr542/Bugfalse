@@ -5,3 +5,6 @@ python-multipart
 requests
 pytest
 httpx
+
+# Optional production hardening / tooling
+slowapi
