@@ -54,7 +54,7 @@ def analyze_code(code, api_key=None, max_attempts=4, backoff_factor=1.0, mode="a
                 )
             }
         ],
-        "max_tokens": 1500,
+        "max_tokens": 3000,
         "temperature": 0.2
     }
 
@@ -81,35 +81,56 @@ def analyze_code(code, api_key=None, max_attempts=4, backoff_factor=1.0, mode="a
             data = res.json()
             logger.debug("Groq raw response: %s", data)
 
-            # Extract content from OpenAI-compatible response
-            text = None
-            if isinstance(data, dict):
-                choices = data.get("choices")
-                if choices and isinstance(choices, list):
-                    message = choices[0].get("message", {})
-                    text = message.get("content")
+            # Extract content from the OpenAI-compatible response. Groq responses
+            # can contain a string, a list of content blocks, or (for some models)
+            # reasoning content alongside the normal answer.
+            def _content_to_text(value):
+                if isinstance(value, str):
+                    return value.strip()
+                if isinstance(value, list):
+                    parts = []
+                    for block in value:
+                        if isinstance(block, str):
+                            parts.append(block)
+                        elif isinstance(block, dict):
+                            parts.append(block.get("text") or block.get("content") or "")
+                    return "".join(parts).strip()
+                if isinstance(value, dict):
+                    return (value.get("text") or value.get("content") or "").strip()
+                return ""
 
+            text = ""
+            if isinstance(data, dict):
+                choices = data.get("choices") or []
+                if choices and isinstance(choices, list) and isinstance(choices[0], dict):
+                    message = choices[0].get("message") or {}
+                    text = _content_to_text(message.get("content"))
+                    if not text:
+                        text = _content_to_text(message.get("reasoning_content"))
+                    if not text:
+                        text = _content_to_text(choices[0].get("text"))
                 if not text:
                     text = (
-                        data.get("text") or
-                        data.get("output") or
-                        data.get("generated_text") or
-                        data.get("content")
+                        _content_to_text(data.get("output_text")) or
+                        _content_to_text(data.get("text")) or
+                        _content_to_text(data.get("output")) or
+                        _content_to_text(data.get("generated_text")) or
+                        _content_to_text(data.get("content"))
                     )
 
             elif isinstance(data, list) and data:
                 first = data[0]
                 if isinstance(first, dict):
                     text = (
-                        first.get("content") or
-                        first.get("text") or
-                        first.get("generated_text")
+                        _content_to_text(first.get("content")) or
+                        _content_to_text(first.get("text")) or
+                        _content_to_text(first.get("generated_text"))
                     )
 
             if not text:
-                logger.error("Could not extract text from Groq response: %s", data)
+                logger.error("Groq returned no usable text. Response keys: %s", list(data.keys()) if isinstance(data, dict) else type(data).__name__)
                 return {
-                    "error": "No output generated from Groq",
+                    "error": "Groq returned an empty response. Check the selected model and API response.",
                     "raw_response": data
                 }
 
@@ -176,3 +197,62 @@ def check_connectivity(api_key=None, timeout=10):
         return {"ok": False, "error": f"SSL handshake failed: {exc}"}
     except requests.exceptions.RequestException as exc:
         return {"ok": False, "error": f"Request failed: {exc}"}
+
+
+def chat(message, code="", filename="", language="", framework="", history=None, api_key=None):
+    """Professional code-aware chat using the same robust Groq response handling."""
+    token = api_key or GROQ_TOKEN
+    if not token:
+        return {"error": "AI is not configured. Set GROQ_TOKEN in Render Environment Variables."}
+    history = history or []
+    messages = [{
+        "role": "system",
+        "content": (
+            "You are BugFalse AI, a senior software engineer. Give direct, useful answers. "
+            "Use the supplied code as context. Never claim code was executed without evidence. "
+            "Use Markdown for code and structured explanations."
+        )
+    }]
+    for item in history:
+        role = "user" if item.get("role") == "user" else "assistant"
+        text = item.get("text", "")
+        if text:
+            messages.append({"role": role, "content": text})
+    context = f"Current file: {filename or 'none'}\nLanguage: {language or 'unknown'}\nFramework: {framework or 'none'}\n"
+    if code:
+        context += f"\nCurrent code:\n```{language or ''}\n{code[:60000]}\n```\n"
+    messages.append({"role": "user", "content": context + "\nUser request:\n" + message})
+
+    session = requests.Session()
+    session.trust_env = False
+    session.verify = GROQ_VERIFY_SSL
+    try:
+        res = session.post(
+            GROQ_URL,
+            headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
+            json={"model": GROQ_MODEL, "messages": messages, "temperature": 0.2, "max_tokens": 2000},
+            timeout=60,
+        )
+        if res.status_code == 401:
+            return {"error": "Groq API token is invalid. Check GROQ_TOKEN in Render."}
+        if not res.ok:
+            return {"error": f"Groq request failed ({res.status_code}). {res.text[:500]}"}
+        data = res.json()
+        choices = data.get("choices") or []
+        if choices:
+            msg = choices[0].get("message") or {}
+            content = msg.get("content")
+            if isinstance(content, list):
+                content = "".join((x.get("text", "") if isinstance(x, dict) else str(x)) for x in content)
+            if content and str(content).strip():
+                return {"reply": str(content).strip(), "provider": "groq"}
+            reasoning = msg.get("reasoning_content")
+            if reasoning:
+                return {"reply": str(reasoning).strip(), "provider": "groq"}
+        return {"error": "Groq returned an empty response. Check the selected model and API configuration."}
+    except requests.exceptions.RequestException as exc:
+        logger.exception("Groq chat request failed")
+        return {"error": f"Unable to reach Groq: {exc}"}
+    except Exception as exc:
+        logger.exception("Groq chat parsing failed")
+        return {"error": f"AI response could not be read: {exc}"}

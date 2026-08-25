@@ -15,6 +15,34 @@ class DebugRequest(BaseModel):
     key: Optional[str] = None
     mode: str = "analyze"
 
+
+
+def local_python_hint(code: str, filename: str):
+    """Small deterministic fallback so the workspace remains useful without AI."""
+    if not filename.lower().endswith('.py'):
+        return None
+    try:
+        compile(code, filename, 'exec')
+    except SyntaxError as exc:
+        return {"severity":"error","message":exc.msg,"type":"SyntaxError","line":exc.lineno,"column":exc.offset}
+    try:
+        import ast
+        tree=ast.parse(code)
+        defined=set()
+        hints=[]
+        for node in ast.walk(tree):
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                defined.add(node.name)
+            elif isinstance(node, ast.Name) and isinstance(node.ctx, (ast.Store, ast.Param)):
+                defined.add(node.id)
+        # Catch the common return of an undefined local/global name.
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Return) and isinstance(node.value, ast.Name) and node.value.id not in defined and node.value.id not in {'True','False','None'}:
+                hints.append({"severity":"error","message":f"`{node.value.id}` is not defined; this may cause a NameError.","type":"NameError","line":node.value.lineno,"column":node.value.col_offset+1})
+        return hints[0] if hints else None
+    except Exception:
+        return None
+
 def safe_json_text(value):
     return str(value or "").encode("ascii", errors="backslashreplace").decode("ascii")
 
@@ -34,6 +62,12 @@ async def debug(payload: DebugRequest):
             )
     except Exception as exc:
         raise HTTPException(status_code=500, detail=safe_json_text(f"Server error: {exc}"))
+    if isinstance(result, dict) and result.get("error"):
+        hint = local_python_hint(payload.code, payload.filename)
+        if hint:
+            result.setdefault("issues", [hint])
+            result.setdefault("analysis", "AI is currently unavailable, so BugFalse added a local deterministic diagnostic.")
+            result.setdefault("score", 40)
     if isinstance(result, dict):
         result.setdefault("provider", "groq")
         if "errors" in result and "issues" not in result: result["issues"] = result.pop("errors")
