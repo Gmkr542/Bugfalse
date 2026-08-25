@@ -125,3 +125,21 @@ BugFalse/
 ## Verification
 
 The repository is verified with the existing test suite before release.
+
+## Workspace model
+
+BugFalse separates three concerns:
+
+- **File management** — the `File` header menu and Explorer handle create/open/folder/rename/save/download/delete.
+- **Code editing** — Monaco remains the clean primary editing surface.
+- **Language workspace** — contextual tools appear around the editor only when useful.
+
+### HTML web workspace
+
+When an HTML file is active, BugFalse switches to a web-development workspace automatically. The editor occupies the left side and a larger browser-style live output occupies the right. The live output includes a small Console/Elements inspection area. HTML changes are debounced, rendered automatically, and recorded in Live Output. CSS and JavaScript files in the local workspace are included in the HTML document when possible.
+
+Other languages keep the normal editor + output workflow. HTML is intentionally the trigger for the web workspace so the interface does not become a browser-inspector layout for unrelated files.
+
+## File controls
+
+Use **File** in the top header for New File, Open File, Open Folder, Rename, Save, Download, and Delete. New files default to `untitled.txt`; renaming a file changes the detected language and workspace behavior.

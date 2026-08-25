@@ -3,20 +3,26 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="theme-color" content="#0b0d10">
-  <meta name="description" content="BugFalse — an AI engineering workspace for writing, running, debugging and improving code.">
-  <title>BugFalse — AI Engineering Workspace</title>
-  <link rel="preconnect" href="https://cdn.jsdelivr.net">
-  <link rel="stylesheet" href="/static/css/styles.css?v=20260825-final">
+  <meta name="description" content="BugFalse — a focused AI engineering workspace.">
+  <title>BugFalse — AI Engineering</title>
+  <link rel="stylesheet" href="/static/css/styles.css?v=20260825-excellence">
 </head>
 <body>
 <div class="app" id="app">
   <header class="topbar">
     <div class="brand"><span class="brand-mark">B</span><span>BugFalse</span><span class="brand-sub">AI ENGINEERING</span></div>
+    <button class="header-file" id="fileMenuBtn">File <span>⌄</span></button>
     <div class="workspace-name" id="workspaceName">Untitled workspace</div>
-    <div class="top-actions">
-      <button class="top-btn" id="themeBtn" title="Toggle theme">☼</button>
-      <button class="top-btn" id="settingsBtn" title="Settings">⚙</button>
+    <div class="top-actions"><button class="top-btn" id="themeBtn" title="Theme">☼</button><button class="top-btn" id="settingsBtn" title="Settings">⚙</button></div>
+    <div class="file-menu hidden" id="fileMenu">
+      <button data-file-action="new">New File</button>
+      <button data-file-action="open">Open File</button>
+      <button data-file-action="folder">Open Folder</button>
+      <div class="menu-separator"></div>
+      <button data-file-action="rename">Rename</button>
+      <button data-file-action="save">Save</button>
+      <button data-file-action="download">Download</button>
+      <button data-file-action="delete" class="danger">Delete</button>
     </div>
   </header>
 
@@ -25,20 +31,24 @@
       <div class="sidebar-head">WORKSPACE</div>
       <button class="nav-item active" data-view="explorer"><span>▦</span>Explorer</button>
       <button class="nav-item" data-view="history"><span>◷</span>History</button>
+      <div class="explorer" id="explorer">
+        <div class="explorer-head"><span>FILES</span><button id="newFileBtn" title="New file">+</button></div>
+        <div id="fileTree" class="file-tree"><div class="tree-empty">No files</div></div>
+      </div>
       <div class="sidebar-spacer"></div>
-      <div class="sidebar-foot"><span class="online-dot"></span> Local workspace</div>
+      <div class="sidebar-foot"><span class="online-dot"></span>Local workspace</div>
     </aside>
 
     <main class="main">
       <div class="toolbar">
-        <div class="toolbar-group">
-          <button class="primary" id="openBtn">Open</button>
+        <div class="toolbar-left">
+          <button class="tool-btn" id="openBtn">Open</button>
           <input type="file" id="fileInput" hidden multiple>
           <input type="file" id="folderInput" hidden webkitdirectory directory multiple>
           <button class="tool-btn" id="runBtn" disabled>Run</button>
           <button class="tool-btn stop" id="stopBtn" disabled>Stop</button>
         </div>
-        <div class="toolbar-group right">
+        <div class="toolbar-right">
           <label class="live-control"><input type="checkbox" id="liveToggle" checked><span></span>Live</label>
           <span class="runtime" id="runtimePill">No file</span>
           <button class="tool-btn" id="downloadBtn" disabled>Download</button>
@@ -46,9 +56,8 @@
       </div>
 
       <div class="tabs" id="fileTabs"></div>
-
       <section class="workspace-head">
-        <div class="language"><span class="language-icon" id="languageIcon">⌘</span><div><strong id="languageTitle">Code workspace</strong><span id="frameworkText"></span><small id="languageHint">Open a file to start.</small></div></div>
+        <div class="language"><span class="language-icon" id="languageIcon">TXT</span><div><strong id="languageTitle">Code workspace</strong><span id="frameworkText"></span><small id="languageHint">Create or open a file to start.</small></div></div>
         <div class="language-state" id="languageState">Ready</div>
       </section>
 
@@ -57,15 +66,25 @@
           <div class="empty-state" id="emptyState">
             <div class="empty-mark">B</div>
             <h1>Build with BugFalse</h1>
-            <p>Open a file and work on it directly. BugFalse keeps the editor, live feedback and AI in one place.</p>
-            <div class="empty-actions"><button class="primary" id="emptyOpen">Open file</button><button class="tool-btn" id="sampleBtn">Try sample</button></div>
-            <div class="drop-note">You can also drag files into the workspace.</div>
+            <p>Open a file or create one. The editor stays focused on your code; tools appear around it only when useful.</p>
+            <div class="empty-actions"><button class="primary" id="emptyOpen">Open file</button><button class="tool-btn" id="emptyNew">New file</button></div>
+            <div class="drop-note">Drag files into the workspace to open them.</div>
           </div>
           <div id="monaco" class="monaco"></div>
         </section>
-        <section class="preview-pane hidden" id="previewPane">
-          <div class="pane-title"><span><i class="live-dot"></i>Live Preview</span><span id="previewStatus">Waiting</span></div>
-          <iframe id="previewFrame" title="Live preview" sandbox="allow-scripts"></iframe>
+
+        <section class="web-pane hidden" id="webPane">
+          <div class="browser-bar">
+            <div class="browser-dots"><i></i><i></i><i></i></div>
+            <button id="webRefresh" title="Refresh">↻</button>
+            <div class="address">bugfalse.local / <span id="webPath">index.html</span></div>
+            <div class="viewport-tools"><button data-viewport="desktop" class="active">Desktop</button><button data-viewport="tablet">Tablet</button><button data-viewport="mobile">Mobile</button></div>
+          </div>
+          <div class="web-content">
+            <div class="web-preview-wrap"><iframe id="previewFrame" title="Live web output" sandbox="allow-scripts"></iframe></div>
+            <div class="inspect-bar"><button class="inspect-tab active" data-inspect="console">Console</button><button class="inspect-tab" data-inspect="elements">Elements</button><span class="inspect-status" id="previewStatus">Live</span></div>
+            <div class="inspect-panel" id="inspectPanel"></div>
+          </div>
         </section>
       </div>
 
@@ -85,21 +104,20 @@
       <div class="ai-head"><div><strong>BugFalse AI</strong><small>Code-aware engineering assistant</small></div><button class="close-ai" id="closeAi" aria-label="Close AI">×</button></div>
       <div class="ai-context" id="aiContext">Open a file to give AI context.</div>
       <div class="ai-modes"><button class="active" data-mode="analyze">Analyze</button><button data-mode="fix">Fix</button><button data-mode="improve">Improve</button></div>
-      <div class="chat" id="chat">
-        <div class="welcome"><span class="ai-symbol">✦</span><h2>What are you working on?</h2><p>Ask about the current file, a failure, an improvement, or a design decision.</p><div class="quick"><button data-question="Find the most important problem in this file.">Find the main problem</button><button data-question="Improve this code while preserving its behavior.">Improve this code</button></div></div>
-      </div>
+      <div class="chat" id="chat"><div class="welcome"><span class="ai-symbol">✦</span><h2>What are you working on?</h2><p>Ask about the current file, a failure, an improvement, or a design decision.</p><div class="quick"><button data-question="Find the most important problem in this file.">Find the main problem</button><button data-question="Improve this code while preserving its behavior.">Improve this code</button></div></div></div>
       <div class="composer"><textarea id="aiInput" rows="2" placeholder="Ask BugFalse about this code…"></textarea><div><span>Enter to send · Shift+Enter for newline</span><button class="send" id="sendAi" aria-label="Send">↑</button></div></div>
     </aside>
     <button class="ai-reopen hidden" id="reopenAi" aria-label="Open BugFalse AI">✦ AI</button>
   </div>
-
-  <footer class="statusbar"><div><span class="status-dot ready" id="statusDot"></span><span id="statusText">Ready</span></div><div><span id="cursor">Ln 1, Col 1</span><span id="encoding">UTF-8</span><span id="fileStatus">No file</span></div></footer>
+  <footer class="statusbar"><div><span class="status-dot ready" id="statusDot"></span><span id="statusText">Ready</span></div><div><span id="cursor">Ln 1, Col 1</span><span>UTF-8</span><span id="fileStatus">No file</span></div></footer>
 </div>
 
 <div class="modal hidden" id="settingsModal"><div class="modal-card"><div class="modal-head"><strong>Settings</strong><button data-close="settingsModal">×</button></div><label>Live update delay<select id="debounceSelect"><option value="500">500 ms</option><option value="800" selected>800 ms</option><option value="1200">1200 ms</option></select></label><label><input type="checkbox" id="minimapToggle" checked> Editor minimap</label><button class="primary full" data-close="settingsModal">Done</button></div></div>
+<div class="modal hidden" id="newFileModal"><div class="modal-card"><div class="modal-head"><strong>New file</strong><button data-close="newFileModal">×</button></div><label>Filename<input id="newFileName" value="untitled.txt" autocomplete="off"></label><button class="primary full" id="createFileConfirm">Create</button></div></div>
+<div class="modal hidden" id="renameModal"><div class="modal-card"><div class="modal-head"><strong>Rename file</strong><button data-close="renameModal">×</button></div><label>Filename<input id="renameFileName" autocomplete="off"></label><button class="primary full" id="renameFileConfirm">Rename</button></div></div>
 
 <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs/loader.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
-<script src="/static/js/app.js?v=20260825-final"></script>
+<script src="/static/js/app.js?v=20260825-excellence"></script>
 </body>
 </html>
