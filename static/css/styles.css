@@ -173,3 +173,85 @@
 /* CodeAI: a focused editor control, not a chat workspace. */
 .codeai-toggle{padding:0 9px!important;border:1px solid var(--border)!important;background:var(--surface2)!important;color:var(--text)!important;font-size:9px!important;font-weight:650}.codeai-toggle:hover{border-color:#435064!important;background:var(--surface3)!important}.codeai-popover{position:fixed;top:50px;right:14px;width:310px;background:#0d1014;border:1px solid var(--border);border-radius:8px;box-shadow:0 18px 55px #0009;z-index:60;padding:0}.codeai-popover.hidden{display:none}.codeai-head{height:48px;display:flex;align-items:center;justify-content:space-between;padding:0 11px;border-bottom:1px solid var(--border)}.codeai-head strong{display:block;font-size:11px}.codeai-head small{display:block;color:var(--faint);font-size:8px;margin-top:2px}.codeai-head button{width:26px;height:26px;border-radius:5px;background:transparent;color:var(--muted);font-size:18px}.codeai-head button:hover{background:var(--surface3);color:var(--text)}.codeai-actions{display:flex;gap:5px;padding:9px;border-bottom:1px solid var(--border)}.codeai-actions button{flex:1;min-width:0;height:29px;padding:0 7px;border-radius:5px;background:var(--surface2);border:1px solid var(--border);color:var(--muted);font-size:8px}.codeai-actions button:hover,.codeai-actions button.active{background:#222a35;color:var(--text);border-color:#3a4655}.codeai-popover textarea{display:block;width:calc(100% - 18px);margin:9px;border:1px solid var(--border);border-radius:5px;background:#0a0d11;color:var(--text);resize:vertical;min-height:65px;padding:8px;font-size:9px;outline:none}.codeai-popover textarea:focus{border-color:#3a4655}.codeai-foot{display:flex;align-items:center;justify-content:space-between;padding:0 9px 9px;color:var(--faint);font-size:8px}.codeai-foot .primary{height:27px;padding:0 11px}.codeai-popover textarea.hidden{display:none}
 @media(max-width:700px){.codeai-popover{left:8px;right:8px;width:auto}.codeai-actions button{font-size:8px}}
+
+/* 2026-08-25 workspace simplification: one compact header, no redundant tool rows. */
+.topbar{height:40px;padding:0 10px;gap:0}
+.brand{flex:0 0 auto}
+.header-file{margin-left:14px}
+.workspace-name{margin-left:10px;max-width:220px}
+.header-context{display:flex;align-items:center;gap:6px;margin-left:14px;min-width:0;color:var(--muted);font-size:10px;white-space:nowrap}
+.header-context .language-icon{width:21px;height:21px;border:1px solid var(--border);border-radius:5px;display:grid;place-items:center;font:8px var(--mono);color:var(--accent)}
+.header-context strong{font-size:10px;color:var(--text);font-weight:650}
+.header-context #frameworkText{color:var(--faint);font-size:9px}
+.header-context .runtime{border:0;padding:0;max-width:180px;font-size:8px;color:var(--faint)}
+.header-context .language-state{font-size:8px;color:var(--faint)}
+.top-actions{gap:3px}
+.top-btn{width:auto;min-width:28px;height:27px}
+.top-run{height:27px;padding:0 9px;border:1px solid var(--border);border-radius:5px;background:var(--surface2);color:var(--text);font-size:9px;font-weight:650}
+.top-run:hover:not(:disabled){background:var(--surface3);border-color:#3a4552}
+.top-run.hidden{display:none}
+.live-control{height:27px;gap:5px;font-size:8px}
+.live-control em{font-style:normal;color:var(--muted)}
+.live-control span{width:20px;height:11px}
+.live-control span:after{width:7px;height:7px;top:2px;left:2px}
+.live-control input:checked+span:after{left:11px}
+.file-menu{top:37px;left:92px;width:154px;padding:4px}
+.file-menu button{height:29px;font-size:10px}
+.sidebar{width:118px;padding:8px 6px}
+.explorer{margin-top:0}
+.explorer-head{padding:2px 5px 6px;font-size:8px}
+.file-tree{max-height:none}
+.tree-file{height:27px;font-size:9px;padding-left:5px}
+.sidebar-foot{padding:7px 5px;font-size:8px}
+.main{min-width:0}
+.tabs{height:27px}
+.file-tab{height:27px;min-width:92px}
+.editor-stage{min-height:0}
+.bottom-panel{height:62px}
+.bottom-panel.collapsed{height:26px}
+.panel-tabs{height:26px}
+.panel-tab{height:26px;padding:0 8px;font-size:8px}
+.panel-content{min-height:0}
+.event{padding:3px 8px;font-size:8px}
+.statusbar{height:18px;font-size:8px}
+.statusbar>div{gap:10px}
+
+/* The empty workspace should be almost entirely editor space. */
+.app:not(.has-file) .bottom-panel{display:none}
+.app:not(.has-file) .tabs{display:none}
+.app:not(.has-file) .sidebar{background:#0b0e12}
+.app:not(.has-file) .editor-stage{border-top:0}
+
+/* No redundant language card / toolbar remains above the editor. */
+.toolbar,.workspace-head{display:none!important}
+
+/* Web workspace: the browser output owns the majority of the viewport. */
+.editor-stage.web-mode .editor-pane{flex-basis:34%;width:34%}
+.editor-stage.web-mode .web-pane{flex-basis:66%}
+.editor-stage.web-mode .browser-bar{height:31px;padding:0 8px}
+.editor-stage.web-mode .web-preview-wrap{padding:6px}
+.editor-stage.web-mode + .bottom-panel{height:62px}
+.editor-stage.web-mode + .bottom-panel.collapsed{height:26px}
+
+/* Keep CodeAI compact and contextual instead of turning into another workspace. */
+.codeai-popover{top:46px;right:10px;width:300px}
+
+/* Explorer is intentionally quiet. Ctrl/Cmd+B toggles it; no extra header button needed. */
+.app.sidebar-collapsed .sidebar{width:0;padding:0;border:0;overflow:hidden}
+.app.sidebar-collapsed .sidebar>*{display:none}
+
+@media(max-width:1000px){
+  .header-context .runtime,.header-context .language-state{display:none}
+  .workspace-name{max-width:150px}
+  .editor-stage.web-mode .editor-pane{flex-basis:36%;width:36%}
+  .editor-stage.web-mode .web-pane{flex-basis:64%}
+}
+@media(max-width:760px){
+  .brand-sub,.header-context{display:none}
+  .workspace-name{max-width:150px}
+  .sidebar{width:112px}
+  .editor-stage.web-mode{display:block;overflow:auto}
+  .editor-stage.web-mode .editor-pane{width:100%;height:50vh;flex:none}
+  .editor-stage.web-mode .workspace-divider{display:none}
+  .editor-stage.web-mode .web-pane{width:100%;height:50vh;flex:none;border-top:1px solid var(--border)}
+}

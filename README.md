@@ -153,3 +153,17 @@ The UI prioritizes the coding surface. Explorer, AI, and output panels are secon
 - AI: opens as an overlay/drawer so it does not permanently shrink the coding surface.
 - HTML/web mode: editor + live browser output, with a draggable split and responsive fallback.
 - The layout is responsive and reflows on smaller screens.
+
+## Workspace UI simplification
+
+The current workspace intentionally keeps the editor dominant and removes redundant controls:
+
+- File management lives under the single **File** menu.
+- The top bar contains only contextual actions: Run (when applicable), Live, CodeAI, theme, and settings.
+- The old secondary toolbar and language card are removed.
+- The Explorer is intentionally narrow and can be toggled with **Ctrl/Cmd+B**.
+- HTML/CSS web work uses a large side-by-side live output area with a draggable divider.
+- The bottom area is limited to **Live Output** and **Problems**.
+- Web Console/Elements controls are not exposed as separate panels.
+- Empty workspaces do not reserve space for output panels.
+- CodeAI remains a focused editor tool rather than a persistent chat interface.

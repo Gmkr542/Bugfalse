@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="description" content="BugFalse — a focused AI engineering workspace.">
   <title>BugFalse — AI Engineering</title>
-  <link rel="stylesheet" href="/static/css/styles.css?v=20260825-codeai">
+  <link rel="stylesheet" href="/static/css/styles.css?v=20260825-clean">
 </head>
 <body>
 <div class="app" id="app">
@@ -13,60 +13,46 @@
     <div class="brand"><span class="brand-mark">B</span><span>BugFalse</span><span class="brand-sub">AI ENGINEERING</span></div>
     <button class="header-file" id="fileMenuBtn">File <span>⌄</span></button>
     <div class="workspace-name" id="workspaceName">Untitled workspace</div>
-    <div class="top-actions"><button class="top-btn codeai-toggle" id="codeAiToggle" title="CodeAI">CodeAI</button><button class="top-btn" id="sidebarToggle" title="Toggle Explorer" aria-label="Toggle Explorer">☰</button><button class="top-btn" id="themeBtn" title="Theme">☼</button><button class="top-btn" id="settingsBtn" title="Settings">⚙</button></div>
+    <div class="header-context" id="headerContext">
+      <span class="language-icon" id="languageIcon">TXT</span>
+      <strong id="languageTitle">Text</strong><span id="frameworkText"></span>
+      <span class="runtime" id="runtimePill">No file</span>
+      <span class="language-state" id="languageState">Ready</span>
+    </div>
+    <div class="top-actions">
+      <button class="top-run hidden" id="runBtn" disabled>Run</button>
+      <label class="live-control" title="Live updates"><input type="checkbox" id="liveToggle" checked><span></span><em>Live</em></label>
+      <button class="top-btn codeai-toggle" id="codeAiToggle" title="CodeAI">CodeAI</button>
+      <button class="top-btn" id="themeBtn" title="Theme">☼</button>
+      <button class="top-btn" id="settingsBtn" title="Settings">⚙</button>
+    </div>
     <div class="file-menu hidden" id="fileMenu">
       <button data-file-action="new">New File</button>
       <button data-file-action="open">Open File</button>
-      <button data-file-action="folder">Open Folder</button>
       <div class="menu-separator"></div>
-      <button data-file-action="rename">Rename</button>
       <button data-file-action="save">Save</button>
+      <button data-file-action="rename">Rename</button>
       <button data-file-action="download">Download</button>
       <button data-file-action="delete" class="danger">Delete</button>
     </div>
   </header>
-
   <div class="body">
     <aside class="sidebar" id="sidebar">
-      <div class="sidebar-head">WORKSPACE</div>
-      <button class="nav-item active" data-view="explorer"><span>▦</span>Explorer</button>
-      <button class="nav-item" data-view="history"><span>◷</span>History</button>
-      <div class="explorer" id="explorer">
+      <div class="explorer">
         <div class="explorer-head"><span>FILES</span><button id="newFileBtn" title="New file">+</button></div>
         <div id="fileTree" class="file-tree"><div class="tree-empty">No files</div></div>
       </div>
-      <div class="sidebar-spacer"></div>
-      <div class="sidebar-foot"><span class="online-dot"></span>Local workspace</div>
     </aside>
 
     <main class="main">
-      <div class="toolbar">
-        <div class="toolbar-left">
-          <input type="file" id="fileInput" hidden multiple>
-          <input type="file" id="folderInput" hidden webkitdirectory directory multiple>
-          <button class="tool-btn" id="runBtn" disabled>Run</button>
-        </div>
-        <div class="toolbar-right">
-          <label class="live-control"><input type="checkbox" id="liveToggle" checked><span></span>Live</label>
-          <span class="runtime" id="runtimePill">No file</span>
-          <button class="tool-btn" id="downloadBtn" disabled>Download</button>
-        </div>
-      </div>
-
       <div class="tabs" id="fileTabs"></div>
-      <section class="workspace-head">
-        <div class="language"><span class="language-icon" id="languageIcon">TXT</span><div><strong id="languageTitle">Code workspace</strong><span id="frameworkText"></span><small id="languageHint">Create or open a file to start.</small></div></div>
-        <div class="language-state" id="languageState">Ready</div>
-      </section>
-
       <div class="editor-stage" id="editorStage">
         <section class="editor-pane">
           <div class="empty-state" id="emptyState">
             <div class="empty-mark">B</div>
             <h1>Build with BugFalse</h1>
             <p>Open a file or create one. The editor stays focused on your code; tools appear around it only when useful.</p>
-            <div class="empty-actions"><button class="primary" id="emptyOpen">Open file</button><button class="tool-btn" id="emptyNew">New file</button></div>
-            <div class="drop-note">Drag files into the workspace to open them.</div>
+            <div class="drop-note">Use File to open or create a file · drag files here to import.</div>
           </div>
           <div id="monaco" class="monaco"></div>
         </section>
@@ -88,11 +74,8 @@
 
       <section class="bottom-panel">
         <div class="panel-tabs"><button class="panel-collapse" id="bottomToggle" title="Collapse output panel" aria-label="Collapse output panel">⌄</button>
-          <button class="panel-tab active" data-panel="output">Output</button>
+          <button class="panel-tab active" data-panel="output">Live Output</button>
           <button class="panel-tab" data-panel="problems">Problems <b id="problemCount">0</b></button>
-          <button class="panel-tab" data-panel="tests">Tests</button>
-          <button class="panel-tab" data-panel="diff">AI Diff</button>
-          <button class="panel-tab" data-panel="analysis">Analysis</button>
         </div>
         <div class="panel-content" id="panelContent"></div>
       </section>
@@ -117,6 +100,6 @@
 
 <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs/loader.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
-<script src="/static/js/app.js?v=20260825-codeai"></script>
+<script src="/static/js/app.js?v=20260825-clean"></script>
 </body>
 </html>
