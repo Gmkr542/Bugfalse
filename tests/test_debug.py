@@ -1,45 +1,23 @@
 from unittest.mock import patch
 
-def test_debug_rejects_empty_code(client):
-    response = client.post("/debug/", json={"code": "   "})
+def test_empty_code_rejected(client):
+    response = client.post("/debug/", json={"code": "  "})
     assert response.status_code == 422
-    assert "must not be empty" in response.json()["detail"]
 
-def test_debug_normalizes_result(client):
-    mocked = {
-        "errors": [{"message": "bad"}],
-        "explanation": "analysis",
-        "fixed_code": "print('ok')",
-    }
-    with patch("routes.debug.groq_service.analyze_code", return_value=mocked):
-        response = client.post("/debug/", json={"code": "print("})
+def test_local_syntax_diagnostics_when_no_key(client, monkeypatch):
+    monkeypatch.delenv("GROQ_API_KEY", raising=False)
+    monkeypatch.delenv("GROQ_TOKEN", raising=False)
+    response = client.post("/debug/", json={"code": "def broken(:", "filename": "main.py"})
     assert response.status_code == 200
     data = response.json()
-    assert data["provider"] == "groq"
-    assert "issues" in data
-    assert "analysis" in data
-    assert "errors" not in data
-    assert "explanation" not in data
+    assert data["provider"] == "local"
+    assert data["ai_available"] is False
+    assert data["issues"][0]["type"] == "SyntaxError"
 
-def test_debug_accepts_api_key_alias(client):
-    with patch("routes.debug.groq_service.analyze_code", return_value={"issues": []}) as mock:
-        response = client.post("/debug/", json={"code": "x = 1", "api_key": "test-key"})
+def test_groq_failure_is_reported_without_leaking_secrets(client, monkeypatch):
+    monkeypatch.setenv("GROQ_API_KEY", "fake-key")
+    with patch("routes.debug.requests.post", side_effect=__import__("requests").Timeout):
+        response = client.post("/debug/", json={"code": "print(1)"})
     assert response.status_code == 200
-    mock.assert_called_once_with("x = 1", "test-key")
-
-
-def test_debug_preserves_fixed_code(client):
-    mocked = {"fixed_code": "print('fixed')", "analysis": "Fixed", "issues": []}
-    with patch("routes.debug.groq_service.analyze_code", return_value=mocked):
-        response = client.post("/debug/", json={"code": "print('bad')", "mode": "fix", "filename": "main.py", "language": "python"})
-    assert response.status_code == 200
-    assert response.json()["fixed_code"] == "print('fixed')"
-
-def test_debug_reports_provider_error(client):
-    mocked = {"error": "Groq API token is invalid.", "hint": "Check GROQ_TOKEN."}
-    with patch("routes.debug.groq_service.analyze_code", return_value=mocked):
-        response = client.post("/debug/", json={"code": "print(1)", "mode": "improve", "filename": "main.py", "language": "python"})
-    assert response.status_code == 200
-    data = response.json()
-    assert data["error"] == "Groq API token is invalid."
-    assert data["hint"] == "Check GROQ_TOKEN."
+    assert response.json()["ai_available"] is False
+    assert "timed out" in response.json()["error"]

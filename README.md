@@ -1,77 +1,46 @@
-# BugFalse
+# BugFalse — AI-Assisted Coding Workspace
 
-BugFalse is a focused browser-based coding workspace with a clean editor, live execution/output, a specialized live web workspace, and CodeAI for direct code changes.
+BugFalse is a browser-based Python coding workspace with an editor, execution endpoint, runtime detection, and AI-assisted code review. This strengthened package emphasizes explicit execution controls, input validation, predictable API errors, security headers, automated tests, Docker, and CI.
 
-## Product principles
+## Features
 
-- Editor first: most of the viewport belongs to code or the live web result.
-- Minimal UI: secondary operations live in File, Explorer, or contextual controls.
-- CodeAI is a tool, not a chat application: Fix, Improve, or a user-directed Change operate on the current file.
-- Web files use a live side-by-side browser workspace instead of server-side execution.
-- Live Output records meaningful execution, validation, CodeAI, and web-render events.
+- Browser-based editor with sample code, output panel, and AI review actions.
+- FastAPI backend with OpenAPI documentation at `/docs` (can be disabled).
+- Runtime catalog and language detection.
+- AI review modes: analyze, fix, improve, refactor, optimize, security, and test suggestions.
+- Groq integration through environment variables; deterministic local Python syntax diagnostics when no AI key is configured.
+- Request IDs, security headers, bounded request sizes, timeout for outbound AI calls, and a simple per-process rate limit.
+- Pytest suite and GitHub Actions CI.
+- Non-root Docker image.
 
-## Main workflows
+## Important security boundary
 
-### Files
+**Arbitrary code execution is disabled by default.** The local execution route starts a Python subprocess and applies time/output/input limits, but this is not a complete security sandbox. Do not enable `BUGFALSE_ENABLE_LOCAL_EXECUTION=true` on a public service. Python code can potentially access host resources available to the process. For public execution, implement a dedicated container-per-job runner or a sandbox service with CPU, memory, PID, filesystem, network, wall-clock, and output limits, with no host secrets and no shared writable volumes.
 
-`File` provides New File, Open File, Open Folder, Save, Rename, Download, and Delete. New files default to `untitled.txt`. Files can also be dragged into the workspace.
-
-### Normal code
-
-For executable languages, edit the current file, use Run or `Ctrl/Cmd+Enter`, and inspect Live Output and Problems. Live execution is debounced and newer editor revisions cannot be overwritten by stale execution responses.
-
-### Web development
-
-When an HTML file is active (or a web file is opened in a project containing HTML), BugFalse switches to a side-by-side editor/web workspace. HTML, CSS, and JavaScript are assembled into an isolated iframe. Changes refresh automatically and are recorded in Live Output. Console/error messages from the preview are forwarded to Live Output and Problems.
-
-### CodeAI
-
-The single `CodeAI` control offers:
-
-- **Fix** — repair likely problems using current code and diagnostics.
-- **Improve** — improve the current code while preserving intended behavior.
-- **Change…** — wait for a specific user instruction, then apply the requested change.
-
-AI changes are written into the editor and immediately validated/rendered. No AI chat UI is required.
-
-## Supported language detection
-
-Python, JavaScript, TypeScript, Java, C, C++, C#, Go, Rust, PHP, Ruby, Swift, Kotlin, HTML, CSS, JSON, SQL, Markdown, YAML, and plain text are recognized. Runtime availability is detected separately from editor support.
-
-## Backend
-
-FastAPI routes live in `routes/` and runtime/AI behavior is separated into services where appropriate.
-
-Important endpoints:
-
-- `GET /health`
-- `GET /status`
-- `GET /runtime/catalog`
-- `POST /runtime/detect`
-- `POST /execute/`
-- `POST /debug/`
-
-The legacy chatbot API remains available for backward compatibility, but the main workspace does not expose an AI chat interface.
-
-## Environment
-
-Set `GROQ_TOKEN` or `GROQ_API_KEY` for CodeAI. Never commit API keys.
-
-Optional:
-
-- `GROQ_MODEL`
-- `GROQ_URL`
-- `GROQ_VERIFY_SSL`
-- `LOG_LEVEL`
-
-## Local development
+## Run locally
 
 ```bash
+python -m venv .venv
+# Windows:
+.venv\Scripts\activate
+# macOS/Linux:
+source .venv/bin/activate
+
 pip install -r requirements.txt
+cp .env.example .env
 uvicorn app:app --reload
 ```
 
-Open `http://localhost:8000`.
+Open http://127.0.0.1:8000. Copy `.env.example` to `.env` and set `GROQ_API_KEY` for provider-backed AI review. Never commit the real `.env` file.
+
+## Docker
+
+```bash
+cp .env.example .env
+docker compose up --build
+```
+
+Open http://localhost:8000. Execution remains disabled in the container by default.
 
 ## Tests
 
@@ -79,14 +48,36 @@ Open `http://localhost:8000`.
 pytest -q
 ```
 
-The suite covers health, debug normalization, chatbot API compatibility, runtime detection, and Python execution.
+The test suite covers health/readiness, security headers, runtime detection, execution-disabled behavior, request validation, and AI-provider failure fallback. CI runs on pushes and pull requests.
 
-## Deployment
+## API overview
 
-`Dockerfile`, `Procfile`, and `render.yaml` are included. For public arbitrary-code execution, use stronger isolation than a single shared application process (container-per-job or another sandbox boundary with CPU, memory, process, filesystem, network, timeout, and output limits).
+| Method | Endpoint | Purpose |
+|---|---|---|
+| GET | `/health` | Health check |
+| GET | `/ready` | Readiness and AI configuration status |
+| GET | `/status` | Service status and execution flag |
+| GET | `/runtime/catalog` | Runtime availability catalog |
+| POST | `/runtime/detect` | Detect file language |
+| POST | `/execute/` | Execute Python only when explicitly enabled |
+| POST | `/debug/` | AI/local code review |
+| GET | `/debug/status` | AI provider configuration status |
 
-## Current AI behavior
+## Environment variables
 
-- CodeAI is the single AI entry point in the editor; there is no Run button or AI chat UI.
-- Fix and Improve operate directly on the current file and then validate/render automatically.
-- Groq model selection is resilient to model retirement: if `GROQ_MODEL` is empty, BugFalse discovers a currently available chat model; if a configured model returns 404, it automatically discovers and retries with an available model.
+- `GROQ_API_KEY` or `GROQ_TOKEN`: provider credential.
+- `GROQ_MODEL`: model name accepted by your provider account.
+- `GROQ_URL`: API-compatible chat-completions endpoint.
+- `BUGFALSE_ENABLE_LOCAL_EXECUTION`: false by default.
+- `EXECUTION_TIMEOUT_SECONDS`: local process timeout (1–10 seconds).
+- `RATE_LIMIT_PER_MINUTE`: simple per-process rate limit.
+- `ENABLE_API_DOCS`: show `/docs` when true.
+- `LOG_LEVEL`: logging level.
+
+## Deployment notes
+
+- Configure environment variables in the hosting provider; never place secrets in source code.
+- The included Dockerfile runs as a non-root user.
+- The built-in rate limiter is process-local and not a substitute for an API gateway or shared rate-limit store.
+- Configure HTTPS, trusted-host policy, centralized logging, and an external rate limiter before production use.
+- AI review output is advisory; it is not proof that code is correct or safe.

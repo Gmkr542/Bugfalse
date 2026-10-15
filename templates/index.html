@@ -1,111 +1,33 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="description" content="BugFalse — focused AI engineering workspace.">
-  <title>BugFalse — AI Engineering</title>
-  <link rel="stylesheet" href="/static/css/styles.css?v=20260825-codeai2">
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>BugFalse — AI Coding Workspace</title>
+  <link rel="stylesheet" href="/static/styles.css">
 </head>
 <body>
-<div class="app" id="app">
   <header class="topbar">
-    <div class="brand"><span class="brand-mark">B</span><strong>BugFalse</strong></div>
-    <button class="file-button" id="fileMenuBtn" type="button">File <span>⌄</span></button>
-    <div class="active-name" id="workspaceName">No file</div>
-    <div class="top-spacer"></div>
-    <button class="codeai-button" id="codeAiToggle" type="button">CodeAI</button>
-    <button class="icon-button" id="themeBtn" type="button" title="Toggle theme" aria-label="Toggle theme">☼</button>
-    <button class="icon-button" id="settingsBtn" type="button" title="Settings" aria-label="Settings">⚙</button>
-    <div class="file-menu hidden" id="fileMenu" role="menu">
-      <button type="button" data-file-action="new">New File</button>
-      <button type="button" data-file-action="open">Open File</button>
-      <button type="button" data-file-action="folder">Open Folder</button>
-      <div class="menu-separator"></div>
-      <button type="button" data-file-action="save">Save</button>
-      <button type="button" data-file-action="rename">Rename</button>
-      <button type="button" data-file-action="download">Download</button>
-      <button type="button" data-file-action="delete" class="danger">Delete</button>
-    </div>
+    <a class="brand" href="/"><span class="brand-mark">B</span><span>BugFalse<small>AI coding workspace</small></span></a>
+    <div class="top-actions"><span id="apiStatus" class="status"><i></i> Checking API…</span><a href="/docs" target="_blank" rel="noreferrer">API docs ↗</a></div>
   </header>
+  <main class="shell">
+    <section class="intro"><div><p class="eyebrow">BUILD · RUN · DEBUG</p><h1>Think through the bug.<br><span>Fix it with confidence.</span></h1><p class="lede">A lightweight workspace for Python experiments and AI-assisted code review.</p></div>
+      <div class="notice"><strong>Safe by default</strong><p>Hosted code execution is disabled unless explicitly enabled. Never expose unsandboxed execution to the public internet.</p></div>
+    </section>
+    <section class="workspace">
+      <div class="workspace-head"><div><span class="dot"></span> <strong>main.py</strong><span class="muted">Python</span></div><div class="toolbar"><button class="secondary" id="sampleBtn">Load example</button><button class="secondary" id="clearBtn">Clear</button><button id="runBtn" class="primary">Run code</button></div></div>
+      <textarea id="code" spellcheck="false" aria-label="Python source code">def divide(a, b):
+    return a / b
 
-  <div class="body">
-    <aside class="sidebar" id="sidebar">
-      <div class="explorer-head"><span>FILES</span><button id="newFileBtn" type="button" title="New file">+</button></div>
-      <div id="fileTree" class="file-tree"><div class="tree-empty">No files</div></div>
-    </aside>
-
-    <main class="main">
-      <div class="tabs" id="fileTabs"></div>
-      <div class="editor-stage" id="editorStage">
-        <section class="editor-pane" id="editorPane">
-          <div class="empty-state" id="emptyState">
-            <div class="empty-mark">B</div>
-            <h1>Start coding</h1>
-            <p>Create a file or open an existing one.</p>
-            <div class="drop-note">Files can also be dragged into BugFalse.</div>
-          </div>
-          <div id="monaco" class="monaco"></div>
-        </section>
-        <div class="workspace-divider hidden" id="workspaceDivider" aria-label="Resize editor and web output"></div>
-        <section class="web-pane hidden" id="webPane">
-          <div class="browser-bar">
-            <span class="browser-dot"></span><span class="browser-dot"></span><span class="browser-dot"></span>
-            <button id="webRefresh" type="button" title="Refresh web output">↻</button>
-            <div class="address"><span>bugfalse.local</span><span class="address-path" id="webPath">/index.html</span></div>
-            <div class="viewport-tools" aria-label="Viewport">
-              <button type="button" data-viewport="desktop" class="active">Desktop</button>
-              <button type="button" data-viewport="tablet">Tablet</button>
-              <button type="button" data-viewport="mobile">Mobile</button>
-            </div>
-          </div>
-          <div class="web-content">
-            <iframe id="previewFrame" title="Live web output" sandbox="allow-scripts"></iframe>
-            <div class="web-status" id="previewStatus">Live</div>
-          </div>
-        </section>
-      </div>
-
-      <section class="bottom-panel" id="bottomPanel">
-        <div class="panel-bar">
-          <button class="panel-collapse" id="bottomToggle" type="button" title="Toggle Live Output">⌄</button>
-          <button class="panel-tab active" data-panel="output" type="button">Live Output</button>
-          <button class="panel-tab" data-panel="problems" type="button">Problems <b id="problemCount">0</b></button>
-        </div>
-        <div class="panel-content" id="panelContent"></div>
-      </section>
-    </main>
-  </div>
-
-  <div class="codeai-popover hidden" id="codeAiPopover" role="dialog" aria-label="CodeAI">
-    <div class="codeai-head">
-      <div><strong>CodeAI</strong><small>Change the current file</small></div>
-      <button id="closeCodeAi" type="button" aria-label="Close CodeAI">×</button>
-    </div>
-    <div class="codeai-actions">
-      <button type="button" data-codeai-mode="fix">Fix</button>
-      <button type="button" data-codeai-mode="improve">Improve</button>
-      <button type="button" data-codeai-mode="custom">Change…</button>
-    </div>
-    <textarea id="codeAiPrompt" class="hidden" rows="3" placeholder="What should change?"></textarea>
-    <div class="codeai-foot"><span id="codeAiStatus">Ready</span></div>
-  </div>
-
-  <footer class="statusbar">
-    <div><span class="status-dot ready" id="statusDot"></span><span id="statusText">Ready</span></div>
-    <div><span id="cursor">Ln 1, Col 1</span><span id="fileStatus">No file</span></div>
-  </footer>
-</div>
-
-<input id="fileInput" type="file" multiple hidden>
-<input id="folderInput" type="file" webkitdirectory directory multiple hidden>
-
-<div class="modal hidden" id="settingsModal"><div class="modal-card"><div class="modal-head"><strong>Settings</strong><button type="button" data-close="settingsModal">×</button></div><label>Live delay<select id="debounceSelect"><option value="500">500 ms</option><option value="800" selected>800 ms</option><option value="1200">1200 ms</option></select></label><label><span>Editor minimap</span><input type="checkbox" id="minimapToggle" checked></label><button class="primary full" type="button" data-close="settingsModal">Done</button></div></div>
-<div class="modal hidden" id="newFileModal"><div class="modal-card"><div class="modal-head"><strong>New file</strong><button type="button" data-close="newFileModal">×</button></div><label>Filename<input id="newFileName" value="untitled.txt" autocomplete="off"></label><button class="primary full" type="button" id="createFileConfirm">Create</button></div></div>
-<div class="modal hidden" id="renameModal"><div class="modal-card"><div class="modal-head"><strong>Rename file</strong><button type="button" data-close="renameModal">×</button></div><label>Filename<input id="renameFileName" autocomplete="off"></label><button class="primary full" type="button" id="renameFileConfirm">Rename</button></div></div>
-
-<script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs/loader.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
-<script src="/static/js/app.js?v=20260825-codeai2"></script>
-</body>
-</html>
+print(divide(10, 2))
+</textarea>
+      <div class="toolbar lower"><label for="mode">AI action</label><select id="mode"><option value="analyze">Analyze</option><option value="fix">Fix</option><option value="improve">Improve</option><option value="security">Security review</option><option value="tests">Suggest tests</option></select><button id="debugBtn" class="primary">Review with AI</button><span class="muted">Ctrl/⌘ + Enter runs code</span></div>
+    </section>
+    <section class="output-grid">
+      <article class="panel"><div class="panel-title"><h2>Execution output</h2><span id="runState" class="pill">Ready</span></div><pre id="output">Run output will appear here.</pre></article>
+      <article class="panel"><div class="panel-title"><h2>Code review</h2><span id="aiState" class="pill">Ready</span></div><div id="review" class="review muted">Choose an AI action to analyze your code. Configure GROQ_API_KEY to enable provider-backed reviews.</div></article>
+    </section>
+    <footer>BugFalse · Python + FastAPI · <a href="/health">Health</a> · <a href="https://github.com/Gmkr542/Bugfalse" target="_blank" rel="noreferrer">Source repository</a></footer>
+  </main>
+  <script src="/static/app.js" defer></script>
+</body></html>
