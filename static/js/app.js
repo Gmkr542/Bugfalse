@@ -739,5 +739,5 @@ ${data.stderr || ''}`);
     });
   }
 
-  init();
+  bindEvents();
 })();
