@@ -15,8 +15,6 @@ from routes.execute import router as execute_router
 from routes.runtime import router as runtime_router
 from routes.chatbot import router as chatbot_router
 
-app.include_router(chatbot_router, prefix="/chatbot", tags=["AI Chatbot"])
-
 logging.basicConfig(
     level=os.getenv("LOG_LEVEL", "INFO").upper(),
     format="%(asctime)s %(levelname)s %(name)s %(message)s",
@@ -37,6 +35,7 @@ app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="stat
 app.include_router(debug_router, prefix="/debug", tags=["AI Debugging"])
 app.include_router(execute_router, prefix="/execute", tags=["Code Execution"])
 app.include_router(runtime_router, prefix="/runtime", tags=["Runtime"])
+app.include_router(chatbot_router, prefix="/chatbot", tags=["AI Chatbot"])
 
 # Lightweight per-process request guard. Use a gateway/WAF or shared store for multi-worker deployments.
 _RATE_BUCKETS = defaultdict(deque)
