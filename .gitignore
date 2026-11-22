@@ -93,3 +93,9 @@ env/
 
 # Windows
 Thumbs.db
+
+.env
+.env.*
+!.env.example
+logs/*.log
+chat_history.json

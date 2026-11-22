@@ -1,33 +1,267 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>BugFalse — AI Coding Workspace</title>
-  <link rel="stylesheet" href="/static/styles.css">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>BugFalse — AI Code Workspace</title>
+  <link rel="stylesheet" href="/static/css/styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs/loader.js" defer></script>
+  <script src="/static/js/app.js" defer></script>
 </head>
 <body>
-  <header class="topbar">
-    <a class="brand" href="/"><span class="brand-mark">B</span><span>BugFalse<small>AI coding workspace</small></span></a>
-    <div class="top-actions"><span id="apiStatus" class="status"><i></i> Checking API…</span><a href="/docs" target="_blank" rel="noreferrer">API docs ↗</a></div>
-  </header>
-  <main class="shell">
-    <section class="intro"><div><p class="eyebrow">BUILD · RUN · DEBUG</p><h1>Think through the bug.<br><span>Fix it with confidence.</span></h1><p class="lede">A lightweight workspace for Python experiments and AI-assisted code review.</p></div>
-      <div class="notice"><strong>Safe by default</strong><p>Hosted code execution is disabled unless explicitly enabled. Never expose unsandboxed execution to the public internet.</p></div>
-    </section>
-    <section class="workspace">
-      <div class="workspace-head"><div><span class="dot"></span> <strong>main.py</strong><span class="muted">Python</span></div><div class="toolbar"><button class="secondary" id="sampleBtn">Load example</button><button class="secondary" id="clearBtn">Clear</button><button id="runBtn" class="primary">Run code</button></div></div>
-      <textarea id="code" spellcheck="false" aria-label="Python source code">def divide(a, b):
-    return a / b
+  <div id="workspace" class="workspace">
+    <!-- Top Navigation Tool Space: File, View, Run, AI + AI Availability Status on Top Right -->
+    <header class="topnav">
+      <div class="nav-left">
+        <span class="brand-title">BugFalse</span>
 
-print(divide(10, 2))
-</textarea>
-      <div class="toolbar lower"><label for="mode">AI action</label><select id="mode"><option value="analyze">Analyze</option><option value="fix">Fix</option><option value="improve">Improve</option><option value="security">Security review</option><option value="tests">Suggest tests</option></select><button id="debugBtn" class="primary">Review with AI</button><span class="muted">Ctrl/⌘ + Enter runs code</span></div>
-    </section>
-    <section class="output-grid">
-      <article class="panel"><div class="panel-title"><h2>Execution output</h2><span id="runState" class="pill">Ready</span></div><pre id="output">Run output will appear here.</pre></article>
-      <article class="panel"><div class="panel-title"><h2>Code review</h2><span id="aiState" class="pill">Ready</span></div><div id="review" class="review muted">Choose an AI action to analyze your code. Configure GROQ_API_KEY to enable provider-backed reviews.</div></article>
-    </section>
-    <footer>BugFalse · Python + FastAPI · <a href="/health">Health</a> · <a href="https://github.com/Gmkr542/Bugfalse" target="_blank" rel="noreferrer">Source repository</a></footer>
-  </main>
-  <script src="/static/app.js" defer></script>
-</body></html>
+        <div class="nav-menus">
+          <button type="button" class="nav-btn" data-menu="fileMenu">File</button>
+          <button type="button" class="nav-btn" data-menu="viewMenu">View</button>
+          <button type="button" class="nav-btn" data-menu="runMenu">Run</button>
+          <button type="button" class="nav-btn" data-menu="aiMenu">AI</button>
+        </div>
+
+        <span id="activeFileBadge" class="active-file-pill">No file</span>
+      </div>
+
+      <div class="nav-right">
+        <span id="aiAvailabilityBadge" class="ai-status-pill checking" title="AI Provider Availability">
+          <i class="status-dot"></i>
+          <span id="aiAvailabilityText">Checking AI…</span>
+        </span>
+      </div>
+    </header>
+
+    <!-- Dropdown: File -->
+    <div id="fileMenu" class="menu-dropdown hidden" role="menu">
+      <button type="button" data-cmd="new-file">New File…</button>
+      <button type="button" data-cmd="load-sample">Load Sample (main.py)</button>
+      <div class="menu-sep"></div>
+      <button type="button" data-cmd="open-files">Import Local Files…</button>
+      <button type="button" data-cmd="open-folder">Import Local Folder…</button>
+      <button type="button" data-cmd="github-import">Share / Import GitHub Repo Link…</button>
+      <div class="menu-sep"></div>
+      <button type="button" data-cmd="save-file">Save File (Ctrl+S)</button>
+      <button type="button" data-cmd="rename-file">Rename File…</button>
+      <button type="button" data-cmd="download-zip">Download Workspace ZIP</button>
+      <div class="menu-sep"></div>
+      <button type="button" data-cmd="close-file" class="danger">Close File</button>
+    </div>
+
+    <!-- Dropdown: View -->
+    <div id="viewMenu" class="menu-dropdown hidden" role="menu">
+      <button type="button" data-cmd="toggle-files">Toggle File Drawer</button>
+      <button type="button" data-cmd="toggle-terminal">Toggle AI Terminal</button>
+      <button type="button" data-cmd="toggle-preview">Toggle Live Web Preview</button>
+      <div class="menu-sep"></div>
+      <button type="button" data-cmd="toggle-minimap">Toggle Editor Minimap</button>
+      <button type="button" data-cmd="toggle-theme">Switch Dark / Light Theme</button>
+    </div>
+
+    <!-- Dropdown: Run -->
+    <div id="runMenu" class="menu-dropdown hidden" role="menu">
+      <button type="button" data-cmd="run-code">Run Active File (Ctrl+Enter)</button>
+      <button type="button" data-cmd="clear-terminal">Clear AI Terminal</button>
+    </div>
+
+    <!-- Dropdown: AI -->
+    <div id="aiMenu" class="menu-dropdown hidden" role="menu">
+      <button type="button" data-ai="fix">Fix</button>
+      <button type="button" data-ai="improve">Improve</button>
+      <button type="button" data-ai="update">Update…</button>
+      <div class="menu-sep"></div>
+      <button type="button" data-cmd="open-terminal">Terminal</button>
+      <button type="button" data-cmd="open-settings">Settings</button>
+    </div>
+
+    <!-- Full-Screen Code Space -->
+    <main class="code-stage">
+      <!-- Optional Collapsible File List Drawer (hidden by default so code space is 100% full screen, auto-shown on multi-file/GitHub import or View -> Toggle File Drawer) -->
+      <aside id="fileDrawer" class="file-drawer hidden">
+        <div class="drawer-head">
+          <span>FILES</span>
+          <div class="drawer-tools">
+            <button id="drawerNewBtn" type="button" title="New File">+</button>
+            <button id="drawerGithubBtn" type="button" title="Import GitHub Repo">GH</button>
+            <button id="drawerCloseBtn" type="button" title="Hide Files">×</button>
+          </div>
+        </div>
+        <div id="fileList" class="file-list"></div>
+      </aside>
+
+      <!-- Main Editor Column -->
+      <section class="editor-column">
+        <div id="tabsStrip" class="tabs-strip hidden"></div>
+
+        <div class="editor-split">
+          <div class="monaco-wrap">
+            <div id="monaco" class="monaco"></div>
+
+            <!-- Clean Initial Prompt inside Full-Screen Code Space -->
+            <div id="emptyOverlay" class="empty-overlay">
+              <h2>BugFalse Code Workspace</h2>
+              <p>Start coding, import local files, or load a GitHub repository URL.</p>
+              <div class="start-actions">
+                <button id="startWriteBtn" class="btn primary" type="button">Write Code</button>
+                <button id="startImportBtn" class="btn" type="button">Import Files</button>
+                <button id="startGithubBtn" class="btn" type="button">Share GitHub Repo Link</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Optional Live Preview Pane for Web Files -->
+          <div id="previewPane" class="preview-pane hidden">
+            <div class="preview-bar">
+              <span>Live Preview</span>
+              <button id="refreshPreviewBtn" type="button">↻</button>
+            </div>
+            <iframe id="previewFrame" title="Live Web Preview" sandbox="allow-scripts"></iframe>
+          </div>
+        </div>
+
+        <!-- Collapsible Bottom AI Terminal Drawer -->
+        <section id="aiTerminalDrawer" class="ai-terminal hidden">
+          <div class="terminal-bar">
+            <div class="terminal-title">
+              <strong>AI Terminal</strong>
+              <span id="terminalSubStatus" class="term-sub">Ready</span>
+            </div>
+            <div id="commandSuggestions" class="suggestion-chips">
+              <button type="button" data-suggest="/fix">/fix</button>
+              <button type="button" data-suggest="/improve">/improve</button>
+              <button type="button" data-suggest="/update add error handling and docstrings">/update</button>
+              <button type="button" data-suggest="/run">/run</button>
+              <button type="button" data-suggest="/import ">/import repo</button>
+            </div>
+            <div class="terminal-actions">
+              <button id="undoAiBtn" class="btn small hidden" type="button">Undo AI Edit</button>
+              <button id="clearTermBtn" type="button" title="Clear">Clear</button>
+              <button id="closeTermBtn" type="button" title="Close">×</button>
+            </div>
+          </div>
+
+          <div id="terminalLog" class="terminal-log">
+            <div class="t-entry sys">AI Terminal ready. Commands auto-suggest as you type (/fix, /improve, /update, /run, /import owner/repo, /explain).</div>
+          </div>
+
+          <!-- Live Autocomplete Dropdown above Terminal Input -->
+          <div id="autocompleteBox" class="autocomplete-box hidden"></div>
+
+          <form id="terminalForm" class="terminal-input-row">
+            <span class="prompt-arrow">›</span>
+            <input id="terminalInput" type="text" autocomplete="off" placeholder="Type / for commands, paste a GitHub repo URL, or ask AI…">
+            <button type="submit" class="btn primary small">Run</button>
+          </form>
+        </section>
+      </section>
+    </main>
+  </div>
+
+  <!-- Modal: GitHub Repo Import -->
+  <div id="githubModal" class="modal hidden" role="dialog" aria-modal="true">
+    <div class="modal-card">
+      <div class="modal-head">
+        <strong>Import GitHub Repository</strong>
+        <button type="button" data-close="githubModal">×</button>
+      </div>
+      <label class="field">
+        <span>GitHub Repo URL or <code>owner/repo</code></span>
+        <input id="githubUrlInput" type="url" placeholder="https://github.com/owner/repository">
+      </label>
+      <div class="field-row">
+        <label class="field">
+          <span>Branch (optional)</span>
+          <input id="githubBranchInput" type="text" placeholder="main">
+        </label>
+        <label class="field">
+          <span>Subfolder (optional)</span>
+          <input id="githubSubpathInput" type="text" placeholder="src">
+        </label>
+      </div>
+      <div id="githubStatusMsg" class="modal-msg"></div>
+      <button id="githubFetchBtn" class="btn primary full" type="button">Fetch Repository Code</button>
+    </div>
+  </div>
+
+  <!-- Modal: AI Update Instruction -->
+  <div id="updateModal" class="modal hidden" role="dialog" aria-modal="true">
+    <div class="modal-card">
+      <div class="modal-head">
+        <strong>AI Update Code</strong>
+        <button type="button" data-close="updateModal">×</button>
+      </div>
+      <label class="field">
+        <span>Describe what you want AI to update in the active file</span>
+        <textarea id="updateInstructionInput" rows="3" placeholder="e.g. Add input validation, convert to async, or fix edge cases…"></textarea>
+      </label>
+      <button id="confirmUpdateBtn" class="btn primary full" type="button">Apply AI Update</button>
+    </div>
+  </div>
+
+  <!-- Modal: AI Settings (Auto-Fix, Auto-Improve, API Key) -->
+  <div id="settingsModal" class="modal hidden" role="dialog" aria-modal="true">
+    <div class="modal-card">
+      <div class="modal-head">
+        <strong>AI &amp; Workspace Settings</strong>
+        <button type="button" data-close="settingsModal">×</button>
+      </div>
+      <label class="switch-row">
+        <input id="toggleAutoFix" type="checkbox">
+        <span><strong>Auto-Fix</strong> — Automatically fix errors when code runs or fails</span>
+      </label>
+      <label class="switch-row">
+        <input id="toggleAutoImprove" type="checkbox">
+        <span><strong>Auto-Improve</strong> — Automatically optimize &amp; clean code on save</span>
+      </label>
+      <label class="switch-row">
+        <input id="toggleAutoFetch" type="checkbox" checked>
+        <span><strong>Auto-Fetch AI Context</strong> — Automatically sync open code &amp; diagnostics with AI Terminal</span>
+      </label>
+      <label class="switch-row">
+        <input id="toggleLivePreview" type="checkbox" checked>
+        <span><strong>Live Preview</strong> — Auto-refresh web preview while editing</span>
+      </label>
+      <label class="field" style="margin-top:10px">
+        <span>Groq API Key (optional browser override)</span>
+        <input id="groqKeyInput" type="password" placeholder="gsk_…">
+      </label>
+      <button type="button" data-close="settingsModal" class="btn primary full" style="margin-top:12px">Done</button>
+    </div>
+  </div>
+
+  <!-- Modal: New File -->
+  <div id="newFileModal" class="modal hidden" role="dialog" aria-modal="true">
+    <div class="modal-card">
+      <div class="modal-head">
+        <strong>New File</strong>
+        <button type="button" data-close="newFileModal">×</button>
+      </div>
+      <label class="field">
+        <span>Filename</span>
+        <input id="newFileInput" type="text" value="main.py" placeholder="e.g. main.py, app.js, index.html">
+      </label>
+      <button id="createFileBtn" class="btn primary full" style="margin-top:10px" type="button">Create</button>
+    </div>
+  </div>
+
+  <!-- Modal: Rename File -->
+  <div id="renameModal" class="modal hidden" role="dialog" aria-modal="true">
+    <div class="modal-card">
+      <div class="modal-head">
+        <strong>Rename File</strong>
+        <button type="button" data-close="renameModal">×</button>
+      </div>
+      <label class="field">
+        <span>New filename</span>
+        <input id="renameFileInput" type="text">
+      </label>
+      <button id="confirmRenameBtn" class="btn primary full" style="margin-top:10px" type="button">Rename</button>
+    </div>
+  </div>
+
+  <input id="fileInput" type="file" multiple hidden>
+  <input id="folderInput" type="file" webkitdirectory directory multiple hidden>
+</body>
+</html>
