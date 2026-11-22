@@ -554,27 +554,20 @@ ${data.analysis || ''}`, 'ai');
         return;
       }
 
-      logTerminal(`Repo Summary (${repoLabel}):
-${data.summary || 'Completed.'}`, 'ai');
+      logTerminal(`Repo Summary (${repoLabel}):\n${data.summary || 'Completed.'}`, 'ai');
 
       if (data.architecture?.length) {
-        logTerminal('Architecture & Entry Points:
-' + data.architecture.map((x) => `  • ${x}`).join('
-'), 'sys');
+        logTerminal('Architecture & Entry Points:\n' + data.architecture.map((x) => `  • ${x}`).join('\n'), 'sys');
       }
       if (data.issues?.length) {
         logTerminal(
-          'Cross-File Findings:
-' +
-            data.issues.map((iss) => `  - [${iss.severity || 'issue'}] ${iss.file || 'repo'}${iss.line ? ':' + iss.line : ''} — ${iss.message || ''}`).join('
-'),
+          'Cross-File Findings:\n' +
+            data.issues.map((iss) => `  - [${iss.severity || 'issue'}] ${iss.file || 'repo'}${iss.line ? ':' + iss.line : ''} — ${iss.message || ''}`).join('\n'),
           'err'
         );
       }
       if (data.recommendations?.length) {
-        logTerminal('Recommendations:
-' + data.recommendations.map((r) => `  * ${r}`).join('
-'), 'sys');
+        logTerminal('Recommendations:\n' + data.recommendations.map((r) => `  * ${r}`).join('\n'), 'sys');
       }
 
       const updates = data.updated_files && typeof data.updated_files === 'object' ? Object.entries(data.updated_files) : [];
