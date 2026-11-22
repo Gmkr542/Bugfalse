@@ -243,3 +243,102 @@ def import_github_repo(payload: GitHubImportRequest):
     except requests.RequestException as exc:
         logger.warning("GitHub import error for %s/%s: %s", owner, repo, exc)
         raise HTTPException(status_code=502, detail="Unable to reach GitHub API.")
+
+
+class GitHubPushRequest(BaseModel):
+    repo_url: str = Field(..., min_length=3, max_length=500)
+    branch: str = Field(default="main", min_length=1, max_length=120)
+    commit_message: str = Field(default="Update files from BugFalse", min_length=1, max_length=300)
+    token: str = Field(..., min_length=6, max_length=400)
+    files: dict[str, str] = Field(..., min_length=1)
+
+
+def _clean_repo_path(path: str) -> str:
+    rel = path.strip().lstrip("/").replace("\\", "/")
+    parts = [p for p in rel.split("/") if p and p not in {".", ".."}]
+    return "/".join(parts)
+
+
+@router.post("/push")
+def push_github_files(payload: GitHubPushRequest):
+    try:
+        owner, repo, url_branch, _ = parse_github_url(payload.repo_url)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+
+    branch = (payload.branch or url_branch or "main").strip()
+    token = payload.token.strip()
+    headers = {
+        "Accept": "application/vnd.github+json",
+        "Authorization": f"Bearer {token}",
+        "User-Agent": "BugFalse/6.5",
+    }
+
+    session = requests.Session()
+    updated_paths: list[str] = []
+
+    try:
+        for raw_path, content in payload.files.items():
+            clean_path = _clean_repo_path(raw_path)
+            if not clean_path:
+                continue
+
+            # Ensure target branch exists if user entered a new branch name
+            if updated_paths == []:
+                br_res = session.get(f"https://api.github.com/repos/{owner}/{repo}/branches/{branch}", headers=headers, timeout=15)
+                if br_res.status_code == 404:
+                    repo_info = session.get(f"https://api.github.com/repos/{owner}/{repo}", headers=headers, timeout=15)
+                    def_br = repo_info.json().get("default_branch", "main") if repo_info.ok else "main"
+                    ref_res = session.get(f"https://api.github.com/repos/{owner}/{repo}/git/ref/heads/{def_br}", headers=headers, timeout=15)
+                    sha_head = ref_res.json().get("object", {}).get("sha") if ref_res.ok else None
+                    if sha_head:
+                        session.post(
+                            f"https://api.github.com/repos/{owner}/{repo}/git/refs",
+                            headers=headers,
+                            json={"ref": f"refs/heads/{branch}", "sha": sha_head},
+                            timeout=15,
+                        )
+
+            get_url = f"https://api.github.com/repos/{owner}/{repo}/contents/{clean_path}"
+            existing = session.get(get_url, headers=headers, params={"ref": branch}, timeout=15)
+            sha = None
+            if existing.status_code == 200 and isinstance(existing.json(), dict):
+                sha = existing.json().get("sha")
+            elif existing.status_code not in (404, 422) and not existing.ok:
+                raise HTTPException(status_code=existing.status_code, detail=f"Failed checking {clean_path} on GitHub.")
+
+            encoded = base64.b64encode(content.encode("utf-8")).decode("ascii")
+            put_body: dict[str, object] = {
+                "message": payload.commit_message.strip(),
+                "content": encoded,
+                "branch": branch,
+            }
+            if sha:
+                put_body["sha"] = sha
+
+            put_res = session.put(get_url, headers=headers, json=put_body, timeout=20)
+            if put_res.status_code in (401, 403):
+                raise HTTPException(status_code=put_res.status_code, detail="GitHub authentication failed or token lacks repo write permission.")
+            if not put_res.ok:
+                detail = put_res.json().get("message") if put_res.content else f"GitHub push failed ({put_res.status_code})"
+                raise HTTPException(status_code=502, detail=f"{clean_path}: {detail}")
+
+            updated_paths.append(clean_path)
+
+        if not updated_paths:
+            raise HTTPException(status_code=422, detail="No valid file paths provided to push.")
+
+        return {
+            "ok": True,
+            "owner": owner,
+            "repo": repo,
+            "branch": branch,
+            "commit_message": payload.commit_message.strip(),
+            "pushed_count": len(updated_paths),
+            "files": updated_paths,
+        }
+    except HTTPException:
+        raise
+    except requests.RequestException as exc:
+        logger.warning("GitHub push failed for %s/%s: %s", owner, repo, exc)
+        raise HTTPException(status_code=502, detail="Network error while pushing to GitHub.")

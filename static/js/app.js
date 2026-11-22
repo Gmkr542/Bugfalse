@@ -49,6 +49,9 @@ print(calculate_total([]))
     minimap: localStorage.getItem('bf-minimap') !== '0',
     aiAvailable: false,
     previousCode: null,
+    lastRepo: null,
+    termHistory: [],
+    termHistoryIdx: -1,
     suppressChange: false,
     busyAi: false,
     previewTimer: null,
@@ -60,8 +63,10 @@ print(calculate_total([]))
   const isWebWorkspace = () => {
     const f = current();
     if (!f) return false;
+    const lower = f.name.toLowerCase();
+    if (lower.startsWith('templates/') && (lower.endsWith('.html') || lower.endsWith('.htm'))) return false;
     if (f.language === 'html') return true;
-    return WEB_LANGS.has(f.language) && [...state.files.values()].some((x) => x.language === 'html');
+    return WEB_LANGS.has(f.language) && [...state.files.values()].some((x) => x.language === 'html' && !x.name.toLowerCase().startsWith('templates/'));
   };
 
   function logTerminal(text, kind = 'sys') {
@@ -162,10 +167,8 @@ print(calculate_total([]))
       const htmlFile = [...state.files.values()].find((x) => x.language === 'html');
       html = htmlFile ? htmlFile.content : `<pre>${esc(active.content)}</pre>`;
     }
-    const css = [...state.files.values()].filter((x) => x.language === 'css').map((x) => `<style>${x.content}</style>`).join('
-');
-    const js = [...state.files.values()].filter((x) => x.language === 'javascript').map((x) => `<script>${x.content.replace(/<\/script/gi, '<\/script')}</script>`).join('
-');
+    const css = [...state.files.values()].filter((x) => x.language === 'css').map((x) => `<style>${x.content}</style>`).join('\n');
+    const js = [...state.files.values()].filter((x) => x.language === 'javascript').map((x) => `<script>${x.content.replace(/<\/script/gi, '<\/script')}</script>`).join('\n');
     html = /<\/head>/i.test(html) ? html.replace(/<\/head>/i, `${css}</head>`) : `${css}${html}`;
     html = /<\/body>/i.test(html) ? html.replace(/<\/body>/i, `${js}</body>`) : `${html}${js}`;
     $('previewFrame').srcdoc = html;
@@ -273,6 +276,7 @@ print(calculate_total([]))
       const entries = Object.entries(data.files || {});
       if (!entries.length) throw new Error('No supported source files found.');
 
+      state.lastRepo = { url: data.repo_url || `https://github.com/${data.owner}/${data.repo}`, branch: data.branch || 'main' };
       state.files.clear();
       entries.forEach(([path, code]) => openFile(path, code, false));
       activateFile(entries[0][0]);
@@ -338,6 +342,10 @@ print(calculate_total([]))
       const revised = typeof data.fixed_code === 'string' ? data.fixed_code : '';
       if (revised.trim() && revised.trim() !== beforeCode.trim()) {
         state.previousCode = { name: f.name, content: beforeCode };
+        const oldLines = beforeCode.split('\n').length;
+        const newLines = revised.split('\n').length;
+        const delta = newLines - oldLines;
+        const deltaText = delta === 0 ? `${newLines} lines` : `${newLines} lines (${delta > 0 ? '+' + delta : delta})`;
         f.content = revised;
         f.dirty = revised !== f.original;
         if (state.editor) {
@@ -575,6 +583,7 @@ ${data.stderr || ''}`);
         if (cmd === 'open-files') $('fileInput').click();
         if (cmd === 'open-folder') $('folderInput').click();
         if (cmd === 'github-import') { $('githubStatusMsg').textContent = ''; $('githubModal').classList.remove('hidden'); $('githubUrlInput').focus(); }
+        if (cmd === 'github-push') { $('pushStatusMsg').textContent = ''; if (state.lastRepo) { $('pushRepoInput').value = state.lastRepo.url; $('pushBranchInput').value = state.lastRepo.branch; } $('pushScopeInput').value = $('pushAllFilesToggle')?.checked ? 'All workspace files' : (current()?.name || 'Active file'); $('githubPushModal').classList.remove('hidden'); }
         if (cmd === 'save-file') {
           const f = current();
           if (f) {
@@ -585,6 +594,7 @@ ${data.stderr || ''}`);
             if (state.autoImprove) await runAiAction('improve');
           }
         }
+        if (cmd === 'find-file') { $('fileDrawer').classList.remove('hidden'); requestAnimationFrame(() => state.editor?.layout()); }
         if (cmd === 'rename-file') {
           const f = current();
           if (f) { $('renameFileInput').value = f.name; $('renameModal').classList.remove('hidden'); $('renameFileInput').focus(); }
@@ -683,9 +693,31 @@ ${data.stderr || ''}`);
     $('clearTermBtn').onclick = () => { $('terminalLog').innerHTML = ''; };
     $('closeTermBtn').onclick = () => { $('aiTerminalDrawer').classList.add('hidden'); requestAnimationFrame(() => state.editor?.layout()); };
     $('terminalInput').oninput = (e) => updateAutocomplete(e.target.value);
+    $('terminalInput').onkeydown = (e) => {
+      if (e.key === 'ArrowUp' && state.termHistory.length) {
+        e.preventDefault();
+        state.termHistoryIdx = state.termHistoryIdx < 0
+          ? state.termHistory.length - 1
+          : Math.max(0, state.termHistoryIdx - 1);
+        $('terminalInput').value = state.termHistory[state.termHistoryIdx];
+      } else if (e.key === 'ArrowDown' && state.termHistory.length) {
+        e.preventDefault();
+        if (state.termHistoryIdx >= state.termHistory.length - 1) {
+          state.termHistoryIdx = -1;
+          $('terminalInput').value = '';
+        } else if (state.termHistoryIdx >= 0) {
+          state.termHistoryIdx += 1;
+          $('terminalInput').value = state.termHistory[state.termHistoryIdx];
+        }
+      }
+    };
     $('terminalForm').onsubmit = (e) => {
       e.preventDefault();
       const v = $('terminalInput').value;
+      if (v.trim()) {
+        state.termHistory.push(v.trim());
+        state.termHistoryIdx = -1;
+      }
       $('terminalInput').value = '';
       handleTerminalCommand(v);
     };
@@ -706,6 +738,84 @@ ${data.stderr || ''}`);
       state.previousCode = null;
       $('undoAiBtn').classList.add('hidden');
     };
+
+
+    // GitHub Push from Web UI
+    const savedGhToken = () => (localStorage.getItem('bf-gh-token') || '').trim();
+    if ($('pushTokenInput')) $('pushTokenInput').value = savedGhToken();
+    if ($('rememberTokenToggle')) $('rememberTokenToggle').checked = Boolean(savedGhToken());
+
+    if ($('confirmPushBtn')) {
+      $('confirmPushBtn').onclick = async () => {
+        const repoUrl = ($('pushRepoInput').value || state.lastRepo?.url || '').trim();
+        const branch = ($('pushBranchInput').value || state.lastRepo?.branch || 'main').trim();
+        const message = ($('pushMessageInput').value || 'Update from BugFalse').trim();
+        const token = ($('pushTokenInput').value || savedGhToken()).trim();
+        const pushAll = Boolean($('pushAllFilesToggle')?.checked);
+        const msgEl = $('pushStatusMsg');
+
+        if (!repoUrl || !token) {
+          msgEl.textContent = 'Enter both a GitHub repository URL and a Personal Access Token.';
+          msgEl.className = 'modal-msg err';
+          return;
+        }
+        if ($('rememberTokenToggle')?.checked) localStorage.setItem('bf-gh-token', token);
+        else localStorage.removeItem('bf-gh-token');
+        syncEditor();
+
+        const filesToPush = {};
+        if (pushAll) {
+          state.files.forEach((f) => { filesToPush[f.name] = f.content; });
+        } else {
+          const f = current();
+          if (!f) {
+            msgEl.textContent = 'No active file open to push.';
+            msgEl.className = 'modal-msg err';
+            return;
+          }
+          filesToPush[f.name] = f.content;
+        }
+
+        msgEl.textContent = 'Pushing changes to GitHub...';
+        msgEl.className = 'modal-msg';
+        showTerminal();
+        logTerminal(`Pushing ${Object.keys(filesToPush).length} file(s) to ${repoUrl} (${branch})...`, 'sys');
+
+        try {
+          const res = await fetch('/github/push', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              repo_url: repoUrl,
+              branch,
+              commit_message: message,
+              token,
+              files: filesToPush,
+            }),
+          });
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok) throw new Error(data.detail || `Push failed (${res.status})`);
+
+          Object.keys(filesToPush).forEach((name) => {
+            const fileObj = state.files.get(name);
+            if (fileObj) {
+              fileObj.original = fileObj.content;
+              fileObj.dirty = false;
+            }
+          });
+          renderTabsAndFiles();
+          msgEl.textContent = `Pushed ${data.pushed_count} file(s) to ${data.owner}/${data.repo}@${data.branch}.`;
+          msgEl.className = 'modal-msg ok';
+          logTerminal(`Pushed ${data.pushed_count} file(s) to ${data.owner}/${data.repo}@${data.branch}: ${message}`, 'ai');
+          setTimeout(() => $('githubPushModal').classList.add('hidden'), 650);
+        } catch (err) {
+          const errText = err?.message || String(err);
+          msgEl.textContent = errText;
+          msgEl.className = 'modal-msg err';
+          logTerminal(`GitHub Push Error: ${errText}`, 'err');
+        }
+      };
+    }
 
     // Modals
     $('githubFetchBtn').onclick = () => importGithubRepo($('githubUrlInput').value, $('githubBranchInput').value, $('githubSubpathInput').value, $('githubStatusMsg'));
@@ -776,6 +886,14 @@ ${data.stderr || ''}`);
         if (f) { syncEditor(); f.original = f.content; f.dirty = false; renderTabsAndFiles(); if (state.autoImprove) runAiAction('improve'); }
       }
       if (mod && e.key === 'Enter') { e.preventDefault(); runActiveFile(); }
+      if (mod && e.shiftKey && e.key.toLowerCase() === 'g') {
+        e.preventDefault();
+        $('pushStatusMsg').textContent = '';
+        if (state.lastRepo) { $('pushRepoInput').value = state.lastRepo.url; $('pushBranchInput').value = state.lastRepo.branch; }
+        $('githubPushModal').classList.remove('hidden');
+      }
+      if (mod && e.altKey && e.key.toLowerCase() === 'f') { e.preventDefault(); runAiAction('fix'); }
+      if (mod && e.altKey && e.key.toLowerCase() === 'i') { e.preventDefault(); runAiAction('improve'); }
       if (e.key === 'Escape') {
         $('autocompleteBox').classList.add('hidden');
         document.querySelectorAll('.modal:not(.hidden), .menu-dropdown:not(.hidden)').forEach((el) => el.classList.add('hidden'));

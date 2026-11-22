@@ -222,3 +222,23 @@ button { border: 0; background: transparent; cursor: pointer; }
 .modal-msg { font-size: 11px; min-height: 16px; margin-bottom: 8px; color: var(--muted); }
 .modal-msg.err { color: var(--bad); }
 .modal-msg.ok { color: var(--good); }
+
+/* Slim, unobtrusive scrollbars */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(146, 155, 170, 0.28) transparent;
+}
+*::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+*::-webkit-scrollbar-thumb {
+  background: rgba(146, 155, 170, 0.26);
+  border-radius: 999px;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: rgba(146, 155, 170, 0.5);
+}

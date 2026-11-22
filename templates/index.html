@@ -4,10 +4,10 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>BugFalse — AI Code Workspace</title>
-  <link rel="stylesheet" href="/static/css/styles.css?v={{ asset_v | default('6.4.0') }}">
+  <link rel="stylesheet" href="/static/css/styles.css?v=6.5.0">
   <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs/loader.js" defer></script>
-  <script src="/static/js/app.js?v={{ asset_v | default('6.4.0') }}" defer></script>
+  <script src="/static/js/app.js?v=6.5.0" defer></script>
 </head>
 <body>
   <div id="workspace" class="workspace">
@@ -41,9 +41,11 @@
       <div class="menu-sep"></div>
       <button type="button" data-cmd="open-files">Import Local Files...</button>
       <button type="button" data-cmd="open-folder">Import Local Folder...</button>
-      <button type="button" data-cmd="github-import">Share / Import GitHub Repo Link...</button>
+      <button type="button" data-cmd="github-import">Import GitHub Repo...</button>
+      <button type="button" data-cmd="github-push">Commit &amp; Push to GitHub...</button>
       <div class="menu-sep"></div>
       <button type="button" data-cmd="save-file">Save File (Ctrl+S)</button>
+      <button type="button" data-cmd="find-file">Quick Open / Filter Files...</button>
       <button type="button" data-cmd="rename-file">Rename File...</button>
       <button type="button" data-cmd="download-zip">Download Workspace ZIP</button>
       <div class="menu-sep"></div>
@@ -258,6 +260,48 @@
         <input id="renameFileInput" type="text">
       </label>
       <button id="confirmRenameBtn" class="btn primary full" style="margin-top:10px" type="button">Rename</button>
+    </div>
+  </div>
+
+  <!-- Modal: Commit & Push to GitHub -->
+  <div id="githubPushModal" class="modal hidden" role="dialog" aria-modal="true">
+    <div class="modal-card">
+      <div class="modal-head">
+        <strong>Commit &amp; Push to GitHub</strong>
+        <button type="button" data-close="githubPushModal">x</button>
+      </div>
+      <label class="field">
+        <span>GitHub Repo URL or <code>owner/repo</code></span>
+        <input id="pushRepoInput" type="url" placeholder="https://github.com/owner/repo">
+      </label>
+      <div class="field-row">
+        <label class="field">
+          <span>Branch</span>
+          <input id="pushBranchInput" type="text" value="main">
+        </label>
+        <label class="field">
+          <span>Scope</span>
+          <input id="pushScopeInput" type="text" value="Active file" readonly>
+        </label>
+      </div>
+      <label class="field">
+        <span>Commit Message</span>
+        <input id="pushMessageInput" type="text" value="Update from BugFalse">
+      </label>
+      <label class="field">
+        <span>GitHub Personal Access Token (repo scope)</span>
+        <input id="pushTokenInput" type="password" placeholder="ghp_... (kept in memory unless checked)">
+      </label>
+      <label class="switch-row">
+        <input id="rememberTokenToggle" type="checkbox">
+        <span>Remember GitHub token in this browser</span>
+      </label>
+      <label class="switch-row">
+        <input id="pushAllFilesToggle" type="checkbox">
+        <span>Push all modified/open workspace files instead of only active file</span>
+      </label>
+      <div id="pushStatusMsg" class="modal-msg"></div>
+      <button id="confirmPushBtn" class="btn primary full" type="button">Push to GitHub</button>
     </div>
   </div>
 
