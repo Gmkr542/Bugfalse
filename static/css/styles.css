@@ -42,6 +42,46 @@ button { border: 0; background: transparent; cursor: pointer; }
   background: var(--surface); border-bottom: 1px solid var(--border);
   display: flex; align-items: center; justify-content: space-between; user-select: none; z-index: 40;
 }
+.topnav > nav {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.nav-btn.repo-tab.has-repo {
+  color: var(--accent);
+  background: rgba(138, 180, 255, 0.12);
+}
+.repo-scope-pill {
+  font: 11px var(--mono);
+  color: var(--good);
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: rgba(85, 209, 135, 0.1);
+  border: 1px solid rgba(85, 209, 135, 0.28);
+  max-width: 210px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.drawer-filter {
+  padding: 5px 6px;
+  border-bottom: 1px solid var(--border);
+}
+.drawer-filter input {
+  width: 100%;
+  height: 24px;
+  padding: 0 7px;
+  border-radius: 4px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-size: 11px;
+  outline: none;
+}
+.drawer-filter input:focus {
+  border-color: var(--accent);
+}
 .nav-left, .nav-right { display: flex; align-items: center; gap: 10px; }
 .brand-title { font-weight: 700; font-size: 13px; letter-spacing: -0.01em; color: var(--text); margin-right: 4px; }
 
@@ -241,4 +281,126 @@ button { border: 0; background: transparent; cursor: pointer; }
 }
 *::-webkit-scrollbar-thumb:hover {
   background: rgba(146, 155, 170, 0.5);
+}
+
+/* Top-Nav Folder & File Dropdown Switchers */
+.path-switcher {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 2px 4px;
+}
+.path-pill {
+  height: 22px;
+  padding: 0 7px;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font: 11px var(--mono);
+  color: var(--muted);
+  max-width: 190px;
+}
+.path-pill:hover, .path-pill.open {
+  background: var(--surface3);
+  color: var(--text);
+}
+.path-pill span:nth-child(2),
+.file-pill span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pill-tag {
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--accent);
+  opacity: 0.85;
+}
+.path-sep {
+  color: var(--faint);
+  font: 11px var(--mono);
+}
+.caret {
+  font-size: 10px;
+  color: var(--faint);
+}
+.path-dropdown {
+  max-height: 300px;
+  min-width: 220px;
+  max-width: 340px;
+  overflow-y: auto;
+}
+.path-dropdown button {
+  font: 11.5px var(--mono);
+  gap: 10px;
+}
+.path-dropdown button.current {
+  color: var(--accent);
+  background: rgba(138, 180, 255, 0.12);
+}
+.path-dropdown .dd-meta {
+  font-size: 10px;
+  color: var(--faint);
+  flex: none;
+}
+
+/* Hierarchical Folder Explorer Tree */
+.file-drawer {
+  width: 230px;
+}
+.tree-folder {
+  height: 25px;
+  padding-right: 8px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text);
+  cursor: pointer;
+  user-select: none;
+}
+.tree-folder:hover {
+  background: var(--surface2);
+}
+.tree-folder .twisty {
+  width: 12px;
+  text-align: center;
+  font-size: 10px;
+  color: var(--faint);
+  flex: none;
+}
+.tree-folder .f-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+.tree-folder .f-count {
+  font: 10px var(--mono);
+  color: var(--faint);
+}
+.file-item {
+  height: 25px;
+  padding-right: 8px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  color: var(--muted);
+  cursor: pointer;
+}
+.file-item .ext-tag {
+  font: 9px var(--mono);
+  color: var(--accent);
+  width: 24px;
+  text-align: center;
+  flex: none;
+  opacity: 0.85;
 }

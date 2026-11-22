@@ -32,3 +32,20 @@ def test_groq_failure_is_reported_without_leaking_secrets(client, monkeypatch):
     assert data["ai_available"] is False
     assert "fake-key" not in str(data)
     assert data["error"]
+
+
+def test_repo_debug_overview_without_key(client, monkeypatch):
+    monkeypatch.delenv("GROQ_API_KEY", raising=False)
+    monkeypatch.delenv("GROQ_TOKEN", raising=False)
+    response = client.post(
+        "/debug/repo",
+        json={
+            "files": {"app.py": "print('ok')\n", "utils.py": "def helper():\n    return 1\n"},
+            "mode": "overview",
+            "repo_name": "owner/repo@main",
+        },
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["mode"] == "overview"
+    assert "2 loaded file(s)" in data["summary"]

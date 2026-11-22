@@ -24,12 +24,12 @@ print(calculate_total([]))
 `;
 
   const TERMINAL_COMMANDS = [
-    { cmd: '/fix', desc: 'Auto-fix bugs in the active file' },
-    { cmd: '/improve', desc: 'Improve readability, performance & structure' },
-    { cmd: '/update ', desc: 'Update code with custom instruction (e.g. /update add logging)' },
-    { cmd: '/analyze', desc: 'Analyze active file for issues & edge cases' },
-    { cmd: '/security', desc: 'Run a security vulnerability review' },
-    { cmd: '/tests', desc: 'Generate unit tests for the active file' },
+    { cmd: '/fix', desc: '[File] Auto-fix bugs in the active file' },
+    { cmd: '/improve', desc: '[File] Improve readability & structure of active file' },
+    { cmd: '/update ', desc: '[File] Update active file (e.g. /update add logging)' },
+    { cmd: '/repo-overview', desc: '[Repo] Map & summarize the entire repository' },
+    { cmd: '/repo-audit', desc: '[Repo] Cross-file bug, import & config audit' },
+    { cmd: '/repo-update ', desc: '[Repo] Coordinated multi-file AI update across repo' },
     { cmd: '/run', desc: 'Execute the active file' },
     { cmd: '/import ', desc: 'Import a public GitHub repo (e.g. /import owner/repo)' },
     { cmd: '/explain', desc: 'Explain what the active file does' },
@@ -49,7 +49,10 @@ print(calculate_total([]))
     minimap: localStorage.getItem('bf-minimap') !== '0',
     aiAvailable: false,
     previousCode: null,
+    previousRepoSnapshot: null,
     lastRepo: null,
+    fileFilter: "",
+    collapsedFolders: new Set(),
     termHistory: [],
     termHistoryIdx: -1,
     suppressChange: false,
@@ -138,6 +141,67 @@ print(calculate_total([]))
     }, 900);
   }
 
+  function folderOf(path) {
+    const idx = path.lastIndexOf('/');
+    return idx === -1 ? '/' : path.slice(0, idx);
+  }
+
+  function buildFileTreeNodes(files) {
+    const root = { folders: new Map(), files: [] };
+    files.forEach((f) => {
+      const parts = f.name.split('/');
+      let node = root;
+      let acc = '';
+      for (let i = 0; i < parts.length - 1; i++) {
+        const seg = parts[i];
+        acc = acc ? `${acc}/${seg}` : seg;
+        if (!node.folders.has(seg)) {
+          node.folders.set(seg, { name: seg, path: acc, folders: new Map(), files: [] });
+        }
+        node = node.folders.get(seg);
+      }
+      node.files.push(f);
+    });
+    return root;
+  }
+
+  function countNodeFiles(node) {
+    let total = node.files.length;
+    node.folders.forEach((child) => { total += countNodeFiles(child); });
+    return total;
+  }
+
+  function renderTreeHtml(node, depth = 0, forceExpand = false) {
+    let html = '';
+    const sortedFolders = [...node.folders.values()].sort((a, b) => a.name.localeCompare(b.name));
+    sortedFolders.forEach((folder) => {
+      const collapsed = !forceExpand && state.collapsedFolders.has(folder.path);
+      const pad = 8 + depth * 12;
+      html +=
+        `<div class="tree-folder" data-folder-toggle="${esc(folder.path)}" style="padding-left:${pad}px" title="${esc(folder.path)}">` +
+        `<span class="twisty">${collapsed ? '▸' : '▾'}</span>` +
+        `<span class="f-name">${esc(folder.name)}</span>` +
+        `<span class="f-count">${countNodeFiles(folder)}</span>` +
+        `</div>`;
+      if (!collapsed) {
+        html += renderTreeHtml(folder, depth + 1, forceExpand);
+      }
+    });
+
+    const sortedFiles = [...node.files].sort((a, b) => a.name.localeCompare(b.name));
+    sortedFiles.forEach((f) => {
+      const pad = 10 + depth * 12;
+      const baseName = f.name.split('/').pop();
+      const ext = (baseName.includes('.') ? baseName.split('.').pop() : 'txt').slice(0, 4).toUpperCase();
+      html +=
+        `<div class="file-item ${f.name === state.active ? 'active' : ''}" data-file-item="${esc(f.name)}" style="padding-left:${pad}px" title="${esc(f.name)}">` +
+        `<span class="ext-tag">${esc(ext)}</span>` +
+        `<span>${esc(baseName)}${f.dirty ? ' •' : ''}</span>` +
+        `</div>`;
+    });
+    return html;
+  }
+
   function renderTabsAndFiles() {
     const count = state.files.size;
     $('tabsStrip').classList.toggle('hidden', count <= 1);
@@ -148,15 +212,92 @@ print(calculate_total([]))
       `</button>`
     ).join('');
 
-    $('fileList').innerHTML = [...state.files.values()].sort((a, b) => a.name.localeCompare(b.name)).map((f) =>
-      `<div class="file-item ${f.name === state.active ? 'active' : ''}" data-file-item="${esc(f.name)}" title="${esc(f.name)}">` +
-      `<span>${esc(f.name)}${f.dirty ? ' •' : ''}</span>` +
-      `</div>`
-    ).join('');
+    const qFilter = (state.fileFilter || '').trim().toLowerCase();
+    const visibleFiles = [...state.files.values()].filter((f) => !qFilter || f.name.toLowerCase().includes(qFilter));
+    const treeRoot = buildFileTreeNodes(visibleFiles);
+    $('fileList').innerHTML = visibleFiles.length
+      ? renderTreeHtml(treeRoot, 0, Boolean(qFilter))
+      : '<div class="t-entry sys" style="padding:10px">No files match filter.</div>';
+
+    const repoBadge = $('repoScopeBadge');
+    const repoBtn = $('repoNavBtn');
+    if (state.lastRepo) {
+      repoBadge.textContent = `${state.lastRepo.label} (${state.files.size})`;
+      repoBadge.classList.remove('hidden');
+      repoBtn?.classList.add('has-repo');
+    } else if (state.files.size > 1) {
+      repoBadge.textContent = `Workspace (${state.files.size} files)`;
+      repoBadge.classList.remove('hidden');
+      repoBtn?.classList.add('has-repo');
+    } else {
+      repoBadge.classList.add('hidden');
+      repoBtn?.classList.remove('has-repo');
+    }
 
     const cur = current();
-    $('activeFileBadge').textContent = cur ? `${cur.name}${cur.dirty ? ' •' : ''}` : 'No file';
+    $('activeFolderLabel').textContent = cur ? folderOf(cur.name) : '/';
+    $('activeFileLabel').textContent = cur ? `${cur.name.split('/').pop()}${cur.dirty ? ' •' : ''}` : 'No file';
     $('emptyOverlay').classList.toggle('hidden', !!cur);
+  }
+
+  function openFolderNavDropdown(anchorBtn) {
+    const menu = $('folderNavMenu');
+    const wasHidden = menu.classList.contains('hidden');
+    document.querySelectorAll('.menu-dropdown').forEach((m) => m.classList.add('hidden'));
+    document.querySelectorAll('.nav-btn, .path-pill').forEach((b) => b.classList.remove('open'));
+    if (!wasHidden) return;
+
+    const folderCounts = new Map();
+    state.files.forEach((f) => {
+      const dir = folderOf(f.name);
+      folderCounts.set(dir, (folderCounts.get(dir) || 0) + 1);
+    });
+    if (!folderCounts.size) folderCounts.set('/', 0);
+
+    const activeDir = current() ? folderOf(current().name) : '/';
+    menu.innerHTML = [...folderCounts.entries()]
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([dir, cnt]) =>
+        `<button type="button" class="${dir === activeDir ? 'current' : ''}" data-pick-folder="${esc(dir)}" role="menuitem">` +
+        `<span>${esc(dir)}</span><span class="dd-meta">${cnt} file${cnt === 1 ? '' : 's'}</span>` +
+        `</button>`
+      )
+      .join('');
+
+    const r = anchorBtn.getBoundingClientRect();
+    menu.style.left = `${r.left}px`;
+    menu.classList.remove('hidden');
+    anchorBtn.classList.add('open');
+  }
+
+  function openFileNavDropdown(anchorBtn) {
+    const menu = $('fileNavMenu');
+    const wasHidden = menu.classList.contains('hidden');
+    document.querySelectorAll('.menu-dropdown').forEach((m) => m.classList.add('hidden'));
+    document.querySelectorAll('.nav-btn, .path-pill').forEach((b) => b.classList.remove('open'));
+    if (!wasHidden) return;
+
+    if (!state.files.size) {
+      menu.innerHTML = '<button type="button" data-cmd="new-file" role="menuitem"><span>+ New File...</span></button>' +
+        '<button type="button" data-cmd="github-import" role="menuitem"><span>Import GitHub Repo...</span></button>';
+    } else {
+      const activeDir = current() ? folderOf(current().name) : null;
+      const all = [...state.files.values()].sort((a, b) => {
+        const aInDir = folderOf(a.name) === activeDir ? 0 : 1;
+        const bInDir = folderOf(b.name) === activeDir ? 0 : 1;
+        return aInDir - bInDir || a.name.localeCompare(b.name);
+      });
+      menu.innerHTML = all.map((f) =>
+        `<button type="button" class="${f.name === state.active ? 'current' : ''}" data-pick-file="${esc(f.name)}" role="menuitem">` +
+        `<span>${esc(f.name)}${f.dirty ? ' •' : ''}</span><span class="dd-meta">${esc(f.language)}</span>` +
+        `</button>`
+      ).join('');
+    }
+
+    const r = anchorBtn.getBoundingClientRect();
+    menu.style.left = `${r.left}px`;
+    menu.classList.remove('hidden');
+    anchorBtn.classList.add('open');
   }
 
   function refreshPreview() {
@@ -276,7 +417,7 @@ print(calculate_total([]))
       const entries = Object.entries(data.files || {});
       if (!entries.length) throw new Error('No supported source files found.');
 
-      state.lastRepo = { url: data.repo_url || `https://github.com/${data.owner}/${data.repo}`, branch: data.branch || 'main' };
+      state.lastRepo = { label: `${data.owner}/${data.repo}@${data.branch || 'main'}`, url: data.repo_url || `https://github.com/${data.owner}/${data.repo}`, branch: data.branch || 'main' };
       state.files.clear();
       entries.forEach(([path, code]) => openFile(path, code, false));
       activateFile(entries[0][0]);
@@ -376,6 +517,110 @@ ${data.analysis || ''}`, 'ai');
     }
   }
 
+  // ── Whole-Repository AI Actions: Overview, Cross-File Audit, Multi-File Update ──
+  async function runRepoAction(mode = 'overview', instruction = '') {
+    showTerminal();
+    if (!state.files.size) {
+      logTerminal('Import a GitHub repository or open workspace files first to use Repo AI tools.', 'err');
+      return;
+    }
+    if (state.busyAi) return;
+
+    syncEditor();
+    const filesPayload = {};
+    state.files.forEach((f) => { filesPayload[f.name] = f.content; });
+    const repoLabel = state.lastRepo?.label || `Workspace (${state.files.size} files)`;
+
+    state.busyAi = true;
+    $('terminalSubStatus').textContent = `Repo AI (${mode})...`;
+    logTerminal(`> Repo AI [${mode}] across ${state.files.size} file(s)${instruction ? ': ' + instruction : ''}`, 'user');
+
+    try {
+      const res = await fetch('/debug/repo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          files: filesPayload,
+          mode,
+          instruction: instruction || null,
+          repo_name: repoLabel,
+          apiKey: (localStorage.getItem('bf-groq-key') || '').trim() || undefined,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.detail || `Repo AI failed (${res.status})`);
+      if (data.error) {
+        logTerminal(`Repo AI Error: ${data.error}`, 'err');
+        return;
+      }
+
+      logTerminal(`Repo Summary (${repoLabel}):
+${data.summary || 'Completed.'}`, 'ai');
+
+      if (data.architecture?.length) {
+        logTerminal('Architecture & Entry Points:
+' + data.architecture.map((x) => `  • ${x}`).join('
+'), 'sys');
+      }
+      if (data.issues?.length) {
+        logTerminal(
+          'Cross-File Findings:
+' +
+            data.issues.map((iss) => `  - [${iss.severity || 'issue'}] ${iss.file || 'repo'}${iss.line ? ':' + iss.line : ''} — ${iss.message || ''}`).join('
+'),
+          'err'
+        );
+      }
+      if (data.recommendations?.length) {
+        logTerminal('Recommendations:
+' + data.recommendations.map((r) => `  * ${r}`).join('
+'), 'sys');
+      }
+
+      const updates = data.updated_files && typeof data.updated_files === 'object' ? Object.entries(data.updated_files) : [];
+      if (updates.length) {
+        const snapshot = new Map();
+        state.files.forEach((f, k) => snapshot.set(k, f.content));
+        state.previousRepoSnapshot = snapshot;
+        state.previousCode = null;
+
+        updates.forEach(([path, newContent]) => {
+          const target = state.files.get(path);
+          if (target) {
+            target.content = newContent;
+            target.dirty = newContent !== target.original;
+            if (state.active === path && state.editor) {
+              state.suppressChange = true;
+              state.editor.setValue(newContent);
+              state.suppressChange = false;
+            }
+          }
+        });
+
+        $('fileDrawer').classList.remove('hidden');
+        renderTabsAndFiles();
+        refreshPreview();
+        $('undoAiBtn').classList.remove('hidden');
+        logTerminal(
+          `Updated ${updates.length} file(s) across repository:
+` +
+            updates.map(([p]) => `  ✔ ${p}`).join('
+') +
+            `
+Use 'Undo AI Edit' to revert all repo changes or File -> Commit & Push to GitHub to publish.`,
+          'ai'
+        );
+      } else if (mode === 'update') {
+        logTerminal('No multi-file edits were produced for that instruction.', 'sys');
+      }
+    } catch (err) {
+      logTerminal(`Repo AI Error: ${err?.message || String(err)}`, 'err');
+    } finally {
+      state.busyAi = false;
+      $('terminalSubStatus').textContent = 'Ready';
+    }
+  }
+
   // ── Run Active File ──
   async function runActiveFile() {
     const f = current();
@@ -448,6 +693,9 @@ ${data.stderr || ''}`);
     if (text === '/analyze') return runAiAction('analyze');
     if (text === '/security') return runAiAction('security');
     if (text === '/tests') return runAiAction('tests');
+    if (text === '/repo-overview') return runRepoAction('overview');
+    if (text === '/repo-audit') return runRepoAction('audit');
+    if (text.startsWith('/repo-update ')) return runRepoAction('update', text.slice(13).trim());
     if (text === '/run') return runActiveFile();
     if (text.startsWith('/update ')) return runAiAction('update', text.slice(8).trim());
     if (text.startsWith('/import ')) return importGithubRepo(text.slice(8).trim());
@@ -553,6 +801,30 @@ ${data.stderr || ''}`);
     document.body.classList.toggle('light', state.theme === 'light');
     refreshAiAvailability();
 
+    if ($('folderNavBtn')) {
+      $('folderNavBtn').onclick = (e) => { e.stopPropagation(); openFolderNavDropdown($('folderNavBtn')); };
+    }
+    if ($('fileNavBtn')) {
+      $('fileNavBtn').onclick = (e) => { e.stopPropagation(); openFileNavDropdown($('fileNavBtn')); };
+    }
+    if ($('drawerCollapseAllBtn')) {
+      $('drawerCollapseAllBtn').onclick = () => {
+        if (state.collapsedFolders.size) {
+          state.collapsedFolders.clear();
+        } else {
+          state.files.forEach((f) => {
+            const parts = f.name.split('/');
+            let acc = '';
+            for (let i = 0; i < parts.length - 1; i++) {
+              acc = acc ? `${acc}/${parts[i]}` : parts[i];
+              state.collapsedFolders.add(acc);
+            }
+          });
+        }
+        renderTabsAndFiles();
+      };
+    }
+
     // Top Nav Dropdowns (File, View, Run, AI)
     document.querySelectorAll('.nav-btn[data-menu]').forEach((btn) => {
       btn.onclick = (e) => {
@@ -560,7 +832,7 @@ ${data.stderr || ''}`);
         const menu = $(btn.dataset.menu);
         const wasHidden = menu.classList.contains('hidden');
         document.querySelectorAll('.menu-dropdown').forEach((m) => m.classList.add('hidden'));
-        document.querySelectorAll('.nav-btn').forEach((b) => b.classList.remove('open'));
+        document.querySelectorAll('.nav-btn, .path-pill').forEach((b) => b.classList.remove('open'));
         if (wasHidden) {
           const r = btn.getBoundingClientRect();
           menu.style.left = `${r.left}px`;
@@ -571,7 +843,7 @@ ${data.stderr || ''}`);
     });
     document.addEventListener('click', () => {
       document.querySelectorAll('.menu-dropdown').forEach((m) => m.classList.add('hidden'));
-      document.querySelectorAll('.nav-btn').forEach((b) => b.classList.remove('open'));
+      document.querySelectorAll('.nav-btn, .path-pill').forEach((b) => b.classList.remove('open'));
     });
 
     // Global Command Delegation
@@ -633,6 +905,16 @@ ${data.stderr || ''}`);
         if (cmd === 'open-settings') $('settingsModal').classList.remove('hidden');
       }
 
+      const repoAiMode = e.target.closest('[data-repo-ai]')?.dataset.repoAi;
+      if (repoAiMode) {
+        if (repoAiMode === 'update') {
+          $('repoUpdateModal').classList.remove('hidden');
+          $('repoUpdateInput').focus();
+        } else {
+          runRepoAction(repoAiMode);
+        }
+      }
+
       const aiMode = e.target.closest('[data-ai]')?.dataset.ai;
       if (aiMode) {
         if (aiMode === 'update') {
@@ -648,6 +930,31 @@ ${data.stderr || ''}`);
 
       const closeTab = e.target.closest('[data-close-tab]');
       if (closeTab) { e.stopPropagation(); closeFile(closeTab.dataset.closeTab); }
+
+      const folderToggle = e.target.closest('[data-folder-toggle]');
+      if (folderToggle) {
+        const dirPath = folderToggle.dataset.folderToggle;
+        if (state.collapsedFolders.has(dirPath)) state.collapsedFolders.delete(dirPath);
+        else state.collapsedFolders.add(dirPath);
+        renderTabsAndFiles();
+      }
+
+      const pickFolder = e.target.closest('[data-pick-folder]');
+      if (pickFolder) {
+        const targetDir = pickFolder.dataset.pickFolder;
+        state.collapsedFolders.delete(targetDir);
+        $('fileDrawer').classList.remove('hidden');
+        const firstInDir = [...state.files.values()]
+          .filter((f) => folderOf(f.name) === targetDir)
+          .sort((a, b) => a.name.localeCompare(b.name))[0];
+        if (firstInDir) activateFile(firstInDir.name);
+        else renderTabsAndFiles();
+      }
+
+      const pickFile = e.target.closest('[data-pick-file]');
+      if (pickFile) {
+        activateFile(pickFile.dataset.pickFile);
+      }
 
       const fileItem = e.target.closest('[data-file-item]');
       if (fileItem) activateFile(fileItem.dataset.fileItem);
@@ -722,6 +1029,25 @@ ${data.stderr || ''}`);
       handleTerminalCommand(v);
     };
     $('undoAiBtn').onclick = () => {
+      if (state.previousRepoSnapshot) {
+        state.previousRepoSnapshot.forEach((oldContent, name) => {
+          const f = state.files.get(name);
+          if (f) {
+            f.content = oldContent;
+            f.dirty = f.content !== f.original;
+            if (state.active === name && state.editor) {
+              state.suppressChange = true;
+              state.editor.setValue(oldContent);
+              state.suppressChange = false;
+            }
+          }
+        });
+        renderTabsAndFiles();
+        logTerminal('Reverted last repo-wide multi-file AI update.', 'sys');
+        state.previousRepoSnapshot = null;
+        $('undoAiBtn').classList.add('hidden');
+        return;
+      }
       if (!state.previousCode) return;
       const f = state.files.get(state.previousCode.name);
       if (f) {
@@ -820,6 +1146,23 @@ ${data.stderr || ''}`);
     // Modals
     $('githubFetchBtn').onclick = () => importGithubRepo($('githubUrlInput').value, $('githubBranchInput').value, $('githubSubpathInput').value, $('githubStatusMsg'));
     $('githubUrlInput').onkeydown = (e) => { if (e.key === 'Enter') $('githubFetchBtn').click(); };
+
+    if ($('fileFilterInput')) {
+      $('fileFilterInput').oninput = (e) => {
+        state.fileFilter = e.target.value;
+        renderTabsAndFiles();
+      };
+    }
+
+    if ($('confirmRepoUpdateBtn')) {
+      $('confirmRepoUpdateBtn').onclick = () => {
+        const inst = $('repoUpdateInput').value.trim();
+        if (!inst) return;
+        $('repoUpdateModal').classList.add('hidden');
+        $('repoUpdateInput').value = '';
+        runRepoAction('update', inst);
+      };
+    }
 
     $('confirmUpdateBtn').onclick = () => {
       const inst = $('updateInstructionInput').value.trim();

@@ -3,92 +3,130 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="BugFalse AI code workspace for single-file editing and whole-repository AI analysis, updates, and GitHub sync.">
   <title>BugFalse — AI Code Workspace</title>
-  <link rel="stylesheet" href="/static/css/styles.css?v=6.5.0">
+  <link rel="stylesheet" href="/static/css/styles.css?v=7.1.0">
   <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs/loader.js" defer></script>
-  <script src="/static/js/app.js?v=6.5.0" defer></script>
+  <script src="/static/js/app.js?v=7.1.0" defer></script>
 </head>
 <body>
   <div id="workspace" class="workspace">
-    <!-- Top Navigation Tool Space: File, View, Run, AI + AI Availability Status on Top Right -->
+    <!-- Top Navigation Tool Space: File, View, Run, AI, Repo + AI Availability Status on Top Right -->
     <header class="topnav">
-      <div class="nav-left">
-        <span class="brand-title">BugFalse</span>
+      <nav aria-label="Main navigation">
+        <div class="nav-left">
+          <span class="brand-title">BugFalse</span>
 
-        <div class="nav-menus">
-          <button type="button" class="nav-btn" data-menu="fileMenu">File</button>
-          <button type="button" class="nav-btn" data-menu="viewMenu">View</button>
-          <button type="button" class="nav-btn" data-menu="runMenu">Run</button>
-          <button type="button" class="nav-btn" data-menu="aiMenu">AI</button>
+          <div class="nav-menus">
+            <button type="button" class="nav-btn" data-menu="fileMenu" aria-controls="fileMenu" aria-haspopup="true">File</button>
+            <button type="button" class="nav-btn" data-menu="viewMenu" aria-controls="viewMenu" aria-haspopup="true">View</button>
+            <button type="button" class="nav-btn" data-menu="runMenu" aria-controls="runMenu" aria-haspopup="true">Run</button>
+            <button type="button" class="nav-btn" data-menu="aiMenu" aria-controls="aiMenu" aria-haspopup="true">AI</button>
+            <button type="button" id="repoNavBtn" class="nav-btn repo-tab" data-menu="repoMenu" aria-controls="repoMenu" aria-haspopup="true">Repo</button>
+          </div>
+
+          <div id="pathSwitcherWrap" class="path-switcher">
+            <button type="button" id="folderNavBtn" class="path-pill folder-pill" title="Switch Folder">
+              <span class="pill-tag">DIR</span>
+              <span id="activeFolderLabel">/</span>
+              <span class="caret">▾</span>
+            </button>
+            <span class="path-sep">/</span>
+            <button type="button" id="fileNavBtn" class="path-pill file-pill" title="Switch File">
+              <span id="activeFileLabel">No file</span>
+              <span class="caret">▾</span>
+            </button>
+          </div>
+          <span id="repoScopeBadge" class="repo-scope-pill hidden"></span>
         </div>
 
-        <span id="activeFileBadge" class="active-file-pill">No file</span>
-      </div>
-
-      <div class="nav-right">
-        <span id="aiAvailabilityBadge" class="ai-status-pill checking" title="AI Provider Availability">
-          <i class="status-dot"></i>
-          <span id="aiAvailabilityText">Checking AI...</span>
-        </span>
-      </div>
+        <div class="nav-right">
+          <span id="aiAvailabilityBadge" class="ai-status-pill checking" title="AI Provider Availability">
+            <i class="status-dot" aria-hidden="true"></i>
+            <span id="aiAvailabilityText">Checking AI...</span>
+          </span>
+        </div>
+      </nav>
     </header>
 
     <!-- Dropdown: File -->
     <div id="fileMenu" class="menu-dropdown hidden" role="menu">
-      <button type="button" data-cmd="new-file">New File...</button>
-      <button type="button" data-cmd="load-sample">Load Sample (main.py)</button>
+      <button type="button" data-cmd="new-file" role="menuitem">New File...</button>
+      <button type="button" data-cmd="load-sample" role="menuitem">Load Sample (main.py)</button>
       <div class="menu-sep"></div>
-      <button type="button" data-cmd="open-files">Import Local Files...</button>
-      <button type="button" data-cmd="open-folder">Import Local Folder...</button>
-      <button type="button" data-cmd="github-import">Import GitHub Repo...</button>
-      <button type="button" data-cmd="github-push">Commit &amp; Push to GitHub...</button>
+      <button type="button" data-cmd="open-files" role="menuitem">Import Local Files...</button>
+      <button type="button" data-cmd="open-folder" role="menuitem">Import Local Folder...</button>
+      <button type="button" data-cmd="github-import" role="menuitem">Import GitHub Repo...</button>
+      <button type="button" data-cmd="github-push" role="menuitem">Commit &amp; Push to GitHub...</button>
       <div class="menu-sep"></div>
-      <button type="button" data-cmd="save-file">Save File (Ctrl+S)</button>
-      <button type="button" data-cmd="find-file">Quick Open / Filter Files...</button>
-      <button type="button" data-cmd="rename-file">Rename File...</button>
-      <button type="button" data-cmd="download-zip">Download Workspace ZIP</button>
+      <button type="button" data-cmd="save-file" role="menuitem">Save File (Ctrl+S)</button>
+      <button type="button" data-cmd="find-file" role="menuitem">Quick Open / Filter Files...</button>
+      <button type="button" data-cmd="rename-file" role="menuitem">Rename File...</button>
+      <button type="button" data-cmd="download-zip" role="menuitem">Download Workspace ZIP</button>
       <div class="menu-sep"></div>
-      <button type="button" data-cmd="close-file" class="danger">Close File</button>
+      <button type="button" data-cmd="close-file" class="danger" role="menuitem">Close File</button>
     </div>
 
     <!-- Dropdown: View -->
     <div id="viewMenu" class="menu-dropdown hidden" role="menu">
-      <button type="button" data-cmd="toggle-files">Toggle File Drawer</button>
-      <button type="button" data-cmd="toggle-terminal">Toggle AI Terminal</button>
-      <button type="button" data-cmd="toggle-preview">Toggle Live Web Preview</button>
+      <button type="button" data-cmd="toggle-files" role="menuitem">Toggle File Drawer</button>
+      <button type="button" data-cmd="toggle-terminal" role="menuitem">Toggle AI Terminal</button>
+      <button type="button" data-cmd="toggle-preview" role="menuitem">Toggle Live Web Preview</button>
       <div class="menu-sep"></div>
-      <button type="button" data-cmd="toggle-minimap">Toggle Editor Minimap</button>
-      <button type="button" data-cmd="toggle-theme">Switch Dark / Light Theme</button>
+      <button type="button" data-cmd="toggle-minimap" role="menuitem">Toggle Editor Minimap</button>
+      <button type="button" data-cmd="toggle-theme" role="menuitem">Switch Dark / Light Theme</button>
     </div>
 
     <!-- Dropdown: Run -->
     <div id="runMenu" class="menu-dropdown hidden" role="menu">
-      <button type="button" data-cmd="run-code">Run Active File (Ctrl+Enter)</button>
-      <button type="button" data-cmd="clear-terminal">Clear AI Terminal</button>
+      <button type="button" data-cmd="run-code" role="menuitem">Run Active File (Ctrl+Enter)</button>
+      <button type="button" data-cmd="clear-terminal" role="menuitem">Clear AI Terminal</button>
     </div>
 
-    <!-- Dropdown: AI -->
+    <!-- Dropdown: AI (Single-File Scope) -->
     <div id="aiMenu" class="menu-dropdown hidden" role="menu">
-      <button type="button" data-ai="fix">Fix</button>
-      <button type="button" data-ai="improve">Improve</button>
-      <button type="button" data-ai="update">Update...</button>
+      <button type="button" data-ai="fix" role="menuitem">Fix Active File</button>
+      <button type="button" data-ai="improve" role="menuitem">Improve Active File</button>
+      <button type="button" data-ai="update" role="menuitem">Update Active File...</button>
       <div class="menu-sep"></div>
-      <button type="button" data-cmd="open-terminal">Terminal</button>
-      <button type="button" data-cmd="open-settings">Settings</button>
+      <button type="button" data-cmd="open-terminal" role="menuitem">Terminal</button>
+      <button type="button" data-cmd="open-settings" role="menuitem">Settings</button>
     </div>
+
+    <!-- Dropdown: Repo (Whole-Repository Scope) -->
+    <div id="repoMenu" class="menu-dropdown hidden" role="menu">
+      <button type="button" data-cmd="github-import" role="menuitem">Import Repo from GitHub URL...</button>
+      <div class="menu-sep"></div>
+      <button type="button" data-repo-ai="overview" role="menuitem">Repo Map &amp; Overview</button>
+      <button type="button" data-repo-ai="audit" role="menuitem">Cross-File Bug &amp; Import Audit</button>
+      <button type="button" data-repo-ai="update" role="menuitem">Multi-File AI Update...</button>
+      <div class="menu-sep"></div>
+      <button type="button" data-cmd="find-file" role="menuitem">Show Repo File Tree</button>
+      <button type="button" data-cmd="github-push" role="menuitem">Commit &amp; Push Changes to GitHub...</button>
+    </div>
+
+    <!-- Dropdown: Top Nav Folder Switcher -->
+    <div id="folderNavMenu" class="menu-dropdown path-dropdown hidden" role="menu"></div>
+
+    <!-- Dropdown: Top Nav File Switcher -->
+    <div id="fileNavMenu" class="menu-dropdown path-dropdown hidden" role="menu"></div>
 
     <!-- Full-Screen Code Space -->
     <main class="code-stage">
-      <!-- Optional Collapsible File List Drawer (hidden by default so code space is 100% full screen, auto-shown on multi-file/GitHub import or View -> Toggle File Drawer) -->
+      <!-- Optional Collapsible File List Drawer -->
       <aside id="fileDrawer" class="file-drawer hidden">
         <div class="drawer-head">
-          <span>FILES</span>
+          <span id="drawerTitle">EXPLORER</span>
           <div class="drawer-tools">
+            <button id="drawerCollapseAllBtn" type="button" title="Collapse / Expand Folders">⊟</button>
             <button id="drawerNewBtn" type="button" title="New File">+</button>
             <button id="drawerGithubBtn" type="button" title="Import GitHub Repo">GH</button>
-            <button id="drawerCloseBtn" type="button" title="Hide Files">×</button>
+            <button id="drawerCloseBtn" type="button" title="Hide Explorer">×</button>
           </div>
+        </div>
+        <div class="drawer-filter">
+          <input id="fileFilterInput" type="search" placeholder="Filter files...">
         </div>
         <div id="fileList" class="file-list"></div>
       </aside>
@@ -104,11 +142,11 @@
             <!-- Clean Initial Prompt inside Full-Screen Code Space -->
             <div id="emptyOverlay" class="empty-overlay">
               <h2>BugFalse Code Workspace</h2>
-              <p>Start coding, import local files, or load a GitHub repository URL.</p>
+              <p>Edit individual files with AI, or import a full GitHub repository for repo-wide analysis and multi-file updates.</p>
               <div class="start-actions">
                 <button id="startWriteBtn" class="btn primary" type="button">Write Code</button>
                 <button id="startImportBtn" class="btn" type="button">Import Files</button>
-                <button id="startGithubBtn" class="btn" type="button">Share GitHub Repo Link</button>
+                <button id="startGithubBtn" class="btn" type="button">Import GitHub Repo URL</button>
               </div>
             </div>
           </div>
@@ -134,6 +172,8 @@
               <button type="button" data-suggest="/fix">/fix</button>
               <button type="button" data-suggest="/improve">/improve</button>
               <button type="button" data-suggest="/update add error handling and docstrings">/update</button>
+              <button type="button" data-suggest="/repo-overview">/repo-overview</button>
+              <button type="button" data-suggest="/repo-audit">/repo-audit</button>
               <button type="button" data-suggest="/run">/run</button>
               <button type="button" data-suggest="/import ">/import repo</button>
             </div>
@@ -145,7 +185,7 @@
           </div>
 
           <div id="terminalLog" class="terminal-log">
-            <div class="t-entry sys">AI Terminal ready. Commands auto-suggest as you type (/fix, /improve, /update, /run, /import owner/repo, /explain).</div>
+            <div class="t-entry sys">AI Terminal ready. Single-file: /fix, /improve, /update, /run. Repo-wide: /repo-overview, /repo-audit, /repo-update, /import owner/repo.</div>
           </div>
 
           <!-- Live Autocomplete Dropdown above Terminal Input -->
@@ -153,7 +193,7 @@
 
           <form id="terminalForm" class="terminal-input-row">
             <span class="prompt-arrow">›</span>
-            <input id="terminalInput" type="text" autocomplete="off" placeholder="Type / for commands, paste a GitHub repo URL, or ask AI...">
+            <input id="terminalInput" type="text" autocomplete="off" placeholder="Type / for single-file or repo commands, paste a GitHub repo URL, or ask AI...">
             <button type="submit" class="btn primary small">Run</button>
           </form>
         </section>
@@ -187,11 +227,11 @@
     </div>
   </div>
 
-  <!-- Modal: AI Update Instruction -->
+  <!-- Modal: AI Update Active File -->
   <div id="updateModal" class="modal hidden" role="dialog" aria-modal="true">
     <div class="modal-card">
       <div class="modal-head">
-        <strong>AI Update Code</strong>
+        <strong>AI Update Active File</strong>
         <button type="button" data-close="updateModal">×</button>
       </div>
       <label class="field">
@@ -199,6 +239,21 @@
         <textarea id="updateInstructionInput" rows="3" placeholder="e.g. Add input validation, convert to async, or fix edge cases..."></textarea>
       </label>
       <button id="confirmUpdateBtn" class="btn primary full" type="button">Apply AI Update</button>
+    </div>
+  </div>
+
+  <!-- Modal: Repo Multi-File AI Update -->
+  <div id="repoUpdateModal" class="modal hidden" role="dialog" aria-modal="true">
+    <div class="modal-card">
+      <div class="modal-head">
+        <strong>Repo-Wide Multi-File AI Update</strong>
+        <button type="button" data-close="repoUpdateModal">×</button>
+      </div>
+      <label class="field">
+        <span>Describe the cross-file change across your loaded repository</span>
+        <textarea id="repoUpdateInput" rows="3" placeholder="e.g. Standardize error responses across routes, add a /version endpoint and matching test, or fix cross-file imports..."></textarea>
+      </label>
+      <button id="confirmRepoUpdateBtn" class="btn primary full" type="button">Run Repo-Wide Update</button>
     </div>
   </div>
 
@@ -268,7 +323,7 @@
     <div class="modal-card">
       <div class="modal-head">
         <strong>Commit &amp; Push to GitHub</strong>
-        <button type="button" data-close="githubPushModal">x</button>
+        <button type="button" data-close="githubPushModal">×</button>
       </div>
       <label class="field">
         <span>GitHub Repo URL or <code>owner/repo</code></span>

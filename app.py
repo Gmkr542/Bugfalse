@@ -28,7 +28,7 @@ templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 app = FastAPI(
     title="BugFalse",
     description="Full-screen AI coding workspace with GitHub import, AI terminal, and auto-fix.",
-    version="6.4.0",
+    version="7.1.0",
     docs_url="/docs" if os.getenv("ENABLE_API_DOCS", "true").lower() == "true" else None,
     redoc_url=None,
 )
