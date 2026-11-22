@@ -13,6 +13,9 @@ from fastapi.templating import Jinja2Templates
 from routes.debug import router as debug_router
 from routes.execute import router as execute_router
 from routes.runtime import router as runtime_router
+from routes.chatbot import router as chatbot_router
+
+app.include_router(chatbot_router, prefix="/chatbot", tags=["AI Chatbot"])
 
 logging.basicConfig(
     level=os.getenv("LOG_LEVEL", "INFO").upper(),
