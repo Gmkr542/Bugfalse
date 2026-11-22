@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: bugfalse-ai-engineering
+    env: docker
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
+    envVars:
+      - key: GROQ_URL
+        value: https://api.groq.com/openai/v1/chat/completions
+      - key: GROQ_VERIFY_SSL
+        value: "true"

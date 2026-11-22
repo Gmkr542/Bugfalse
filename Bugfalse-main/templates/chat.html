@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chatbot</title>
+  <link rel="stylesheet" href="/static/css/styles.css">
+  <style>
+    body { font-family: Arial, sans-serif; max-width: 900px; margin: 24px auto; padding: 0 16px; }
+    h1 { margin-bottom: 16px; }
+    .chat-container { border: 1px solid #ccc; border-radius: 8px; padding: 16px; background: #fafafa; }
+    .message { margin-bottom: 12px; }
+    .message.user { text-align: right; }
+    .message.bot { text-align: left; }
+    .message strong { display: block; margin-bottom: 4px; }
+    textarea { width: 100%; min-height: 80px; margin-top: 8px; }
+    button { margin-top: 12px; }
+  </style>
+</head>
+<body>
+  <h1>Chatbot</h1>
+  <div class="chat-container" id="chatContainer">
+    {% if history %}
+      {% for message in history %}
+        <div class="message {{ message.role }}">
+          <strong>{{ message.role|capitalize }}:</strong>
+          <div>{{ message.text }}</div>
+        </div>
+      {% endfor %}
+    {% else %}
+      <p>No messages yet. Send the first message below.</p>
+    {% endif %}
+  </div>
+
+  <textarea id="userMessage" placeholder="Type your message..."></textarea>
+  <button onclick="sendMessage()">Send</button>
+  <button onclick="clearHistory()" style="margin-left: 8px;">Clear History</button>
+
+  <script src="/static/js/chatbot.js"></script>
+</body>
+</html>
