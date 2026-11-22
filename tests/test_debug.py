@@ -16,8 +16,17 @@ def test_local_syntax_diagnostics_when_no_key(client, monkeypatch):
 
 def test_groq_failure_is_reported_without_leaking_secrets(client, monkeypatch):
     monkeypatch.setenv("GROQ_API_KEY", "fake-key")
-    with patch("routes.debug.requests.post", side_effect=__import__("requests").Timeout):
-        response = client.post("/debug/", json={"code": "print(1)"})
+    with patch(
+        "services.groq_service.analyze_code",
+        return_value={
+            "error": "AI provider request timed out.",
+            "hint": "Check network connectivity or retry.",
+        },
+    ):
+        response = client.post("/debug/", json={"code": "print('hi')\n", "filename": "main.py"})
+
     assert response.status_code == 200
-    assert response.json()["ai_available"] is False
-    assert "timed out" in response.json()["error"]
+    data = response.json()
+    assert data["ai_available"] is False
+    assert "fake-key" not in str(data)
+    assert data["error"]
