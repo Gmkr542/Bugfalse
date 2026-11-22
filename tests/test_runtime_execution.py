@@ -1,6 +1,3 @@
-import sys
-
-
 def test_runtime_catalog(client):
     response = client.get('/runtime/catalog')
     assert response.status_code == 200
@@ -30,7 +27,7 @@ def test_runtime_detect_html(client):
 
 def test_execute_python(client, monkeypatch):
     import routes.execute as exec_mod
-    monkeypatch.setattr(exec_mod, "EXECUTION_ENABLED", True)
+    monkeypatch.setattr(exec_mod, 'EXECUTION_ENABLED', True)
     response = client.post('/execute/', json={
         'filename': 'main.py',
         'code': 'print("BugFalse test")'

@@ -327,10 +327,11 @@ def chat(message, code="", filename="", language="", framework="", history=None,
     session.trust_env = False
     session.verify = GROQ_VERIFY_SSL
     try:
+        active_model = resolve_model(session, token, configured=GROQ_MODEL or None)
         res = session.post(
             GROQ_URL,
             headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
-            json={"model": GROQ_MODEL, "messages": messages, "temperature": 0.2, "max_tokens": 2000},
+            json={"model": active_model, "messages": messages, "temperature": 0.2, "max_tokens": 2000},
             timeout=60,
         )
         if res.status_code == 401:

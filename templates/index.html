@@ -1,33 +1,430 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>BugFalse — AI Coding Workspace</title>
-  <link rel="stylesheet" href="/static/styles.css">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>BugFalse Studio — VS Code AI Workspace</title>
+  <link rel="stylesheet" href="/static/css/styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs/loader.js" defer></script>
+  <script src="/static/js/app.js" defer></script>
 </head>
 <body>
-  <header class="topbar">
-    <a class="brand" href="/"><span class="brand-mark">B</span><span>BugFalse<small>AI coding workspace</small></span></a>
-    <div class="top-actions"><span id="apiStatus" class="status"><i></i> Checking API…</span><a href="/docs" target="_blank" rel="noreferrer">API docs ↗</a></div>
-  </header>
-  <main class="shell">
-    <section class="intro"><div><p class="eyebrow">BUILD · RUN · DEBUG</p><h1>Think through the bug.<br><span>Fix it with confidence.</span></h1><p class="lede">A lightweight workspace for Python experiments and AI-assisted code review.</p></div>
-      <div class="notice"><strong>Safe by default</strong><p>Hosted code execution is disabled unless explicitly enabled. Never expose unsandboxed execution to the public internet.</p></div>
-    </section>
-    <section class="workspace">
-      <div class="workspace-head"><div><span class="dot"></span> <strong>main.py</strong><span class="muted">Python</span></div><div class="toolbar"><button class="secondary" id="sampleBtn">Load example</button><button class="secondary" id="clearBtn">Clear</button><button id="runBtn" class="primary">Run code</button></div></div>
-      <textarea id="code" spellcheck="false" aria-label="Python source code">def divide(a, b):
-    return a / b
+  <div id="workbench" class="workbench">
+    <!-- Top VS Code Titlebar & Command Toolbar -->
+    <header class="titlebar">
+      <div class="titlebar-left">
+        <div class="app-logo" title="BugFalse Studio">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+            <polyline points="16 18 22 12 16 6"></polyline>
+            <polyline points="8 6 2 12 8 18"></polyline>
+          </svg>
+        </div>
+        <nav class="menubar" aria-label="Menu">
+          <button type="button" class="menu-trigger" data-menu="fileMenu">File</button>
+          <button type="button" class="menu-trigger" data-menu="editMenu">Edit</button>
+          <button type="button" class="menu-trigger" data-menu="viewMenu">View</button>
+          <button type="button" class="menu-trigger" data-menu="aiMenu">AI</button>
+          <button type="button" class="menu-trigger" data-menu="runMenu">Run</button>
+        </nav>
+      </div>
 
-print(divide(10, 2))
-</textarea>
-      <div class="toolbar lower"><label for="mode">AI action</label><select id="mode"><option value="analyze">Analyze</option><option value="fix">Fix</option><option value="improve">Improve</option><option value="security">Security review</option><option value="tests">Suggest tests</option></select><button id="debugBtn" class="primary">Review with AI</button><span class="muted">Ctrl/⌘ + Enter runs code</span></div>
-    </section>
-    <section class="output-grid">
-      <article class="panel"><div class="panel-title"><h2>Execution output</h2><span id="runState" class="pill">Ready</span></div><pre id="output">Run output will appear here.</pre></article>
-      <article class="panel"><div class="panel-title"><h2>Code review</h2><span id="aiState" class="pill">Ready</span></div><div id="review" class="review muted">Choose an AI action to analyze your code. Configure GROQ_API_KEY to enable provider-backed reviews.</div></article>
-    </section>
-    <footer>BugFalse · Python + FastAPI · <a href="/health">Health</a> · <a href="https://github.com/Gmkr542/Bugfalse" target="_blank" rel="noreferrer">Source repository</a></footer>
-  </main>
-  <script src="/static/app.js" defer></script>
-</body></html>
+      <!-- Center Command Palette / Quick Repo Bar -->
+      <div class="titlebar-center">
+        <button id="commandPaletteBtn" class="command-bar" type="button" title="Quick Actions & GitHub Repo Import (Ctrl+K)">
+          <span class="cmd-icon">⌕</span>
+          <span id="commandBarLabel">BugFalse — Search files, import GitHub repo, or run AI…</span>
+          <kbd>Ctrl K</kbd>
+        </button>
+      </div>
+
+      <!-- Right Tool Actions -->
+      <div class="titlebar-right">
+        <button id="topGithubBtn" class="tool-pill" type="button" title="Import GitHub Repository by URL">
+          <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+          <span>Import GitHub</span>
+        </button>
+        <button id="topAutoFixBtn" class="tool-pill accent" type="button" title="Auto-Fix Bugs in Active File">
+          <span>✦ Auto-Fix</span>
+        </button>
+        <button id="topImproveBtn" class="tool-pill" type="button" title="Auto-Improve Code Quality">
+          <span>⚡ Improve</span>
+        </button>
+        <button id="topRunBtn" class="tool-pill run" type="button" title="Run Active File (Ctrl+Enter)">
+          <span>▶ Run</span>
+        </button>
+        <div class="layout-toggles">
+          <button id="toggleSidebarBtn" class="icon-btn active" type="button" title="Toggle Primary Side Bar (Ctrl+B)">◧</button>
+          <button id="togglePanelBtn" class="icon-btn active" type="button" title="Toggle Bottom Panel (Ctrl+J)">⬓</button>
+          <button id="toggleAiPanelBtn" class="icon-btn active" type="button" title="Toggle AI Assistant Side Bar">◨</button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Dropdown Menus -->
+    <div id="fileMenu" class="dropdown-menu hidden">
+      <button type="button" data-action="new-file">New File… <kbd>Ctrl+N</kbd></button>
+      <button type="button" data-action="load-sample">Open Sample Workspace</button>
+      <div class="sep"></div>
+      <button type="button" data-action="open-files">Open Local Files… <kbd>Ctrl+O</kbd></button>
+      <button type="button" data-action="open-folder">Open Local Folder…</button>
+      <button type="button" data-action="import-github">Import GitHub Repo URL…</button>
+      <div class="sep"></div>
+      <button type="button" data-action="save-file">Save File <kbd>Ctrl+S</kbd></button>
+      <button type="button" data-action="rename-file">Rename Active File…</button>
+      <button type="button" data-action="export-zip">Export Workspace as ZIP</button>
+      <div class="sep"></div>
+      <button type="button" data-action="close-file" class="danger">Close Active Editor</button>
+    </div>
+
+    <div id="editMenu" class="dropdown-menu hidden">
+      <button type="button" data-action="undo">Undo <kbd>Ctrl+Z</kbd></button>
+      <button type="button" data-action="redo">Redo <kbd>Ctrl+Y</kbd></button>
+      <div class="sep"></div>
+      <button type="button" data-action="find">Find in File <kbd>Ctrl+F</kbd></button>
+      <button type="button" data-action="format">Format Document</button>
+    </div>
+
+    <div id="viewMenu" class="dropdown-menu hidden">
+      <button type="button" data-action="view-explorer">Explorer <kbd>Ctrl+Shift+E</kbd></button>
+      <button type="button" data-action="view-search">Search Across Files <kbd>Ctrl+Shift+F</kbd></button>
+      <button type="button" data-action="view-github">GitHub Source Control</button>
+      <div class="sep"></div>
+      <button type="button" data-action="toggle-terminal">Toggle AI Terminal <kbd>Ctrl+J</kbd></button>
+      <button type="button" data-action="toggle-theme">Switch Dark / Light Theme</button>
+    </div>
+
+    <div id="aiMenu" class="dropdown-menu hidden">
+      <button type="button" data-ai-cmd="analyze">Analyze Active File</button>
+      <button type="button" data-ai-cmd="fix">Auto-Fix All Bugs</button>
+      <button type="button" data-ai-cmd="improve">Auto-Improve &amp; Refactor</button>
+      <button type="button" data-ai-cmd="security">Security Audit</button>
+      <button type="button" data-ai-cmd="tests">Generate Unit Tests</button>
+      <div class="sep"></div>
+      <button type="button" data-action="toggle-auto-heal">Toggle Auto-Fix on Error</button>
+    </div>
+
+    <div id="runMenu" class="dropdown-menu hidden">
+      <button type="button" data-action="run-code">Run Active File <kbd>Ctrl+Enter</kbd></button>
+      <button type="button" data-action="clear-terminal">Clear Terminal Output</button>
+    </div>
+
+    <!-- Main VS Code 4-Region Body -->
+    <div class="main-container">
+      <!-- 1. Far-Left Activity Bar -->
+      <aside class="activitybar" aria-label="Activity Bar">
+        <div class="activity-top">
+          <button class="activity-btn active" data-sideview="explorer" title="Explorer (Ctrl+Shift+E)" type="button">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path><polyline points="13 2 13 9 20 9"></polyline></svg>
+          </button>
+          <button class="activity-btn" data-sideview="search" title="Search Files (Ctrl+Shift+F)" type="button">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+          </button>
+          <button class="activity-btn" data-sideview="github" title="GitHub Repository Import" type="button">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="18" cy="18" r="3"></circle><circle cx="6" cy="6" r="3"></circle><path d="M13 6h3a2 2 0 0 1 2 2v7"></path><line x1="6" y1="9" x2="6" y2="21"></line></svg>
+          </button>
+          <button class="activity-btn" data-sideview="ai-tools" title="AI Code Actions & Auto-Fix" type="button">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2L14.8 8.8L22 9.6L16.5 14.3L18.2 21.4L12 17.6L5.8 21.4L7.5 14.3L2 9.6L9.2 8.8L12 2Z"></path></svg>
+          </button>
+        </div>
+        <div class="activity-bottom">
+          <button id="themeToggleActivity" class="activity-btn" title="Toggle Dark/Light Theme" type="button">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line></svg>
+          </button>
+          <button id="settingsActivityBtn" class="activity-btn" title="Workspace & API Settings" type="button">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+          </button>
+        </div>
+      </aside>
+
+      <!-- 2. Primary Side Bar (Explorer / Search / GitHub / AI Tools) -->
+      <aside id="primarySidebar" class="sidebar">
+        <!-- View: Explorer -->
+        <div id="sideview-explorer" class="sideview">
+          <div class="sidebar-header">
+            <span>EXPLORER</span>
+            <div class="sidebar-actions">
+              <button id="sideNewFileBtn" type="button" title="New File">+</button>
+              <button id="sideImportFileBtn" type="button" title="Import Files">↥</button>
+              <button id="sideGithubBtn" type="button" title="Import GitHub Repo">GH</button>
+              <button id="sideExportZipBtn" type="button" title="Download Project ZIP">⇩</button>
+            </div>
+          </div>
+          <div id="repoBanner" class="repo-banner hidden"></div>
+          <div id="fileTree" class="file-tree">
+            <div class="tree-empty">No files open. Create a file, import from disk, or paste a GitHub repo URL.</div>
+          </div>
+        </div>
+
+        <!-- View: Search Across Workspace -->
+        <div id="sideview-search" class="sideview hidden">
+          <div class="sidebar-header"><span>SEARCH</span></div>
+          <div class="sidebar-pad">
+            <input id="workspaceSearchInput" class="vs-input" type="search" placeholder="Search text across open files…">
+            <div id="workspaceSearchResults" class="search-results">Type to search across all loaded files.</div>
+          </div>
+        </div>
+
+        <!-- View: GitHub Repo Import -->
+        <div id="sideview-github" class="sideview hidden">
+          <div class="sidebar-header"><span>GITHUB REPO IMPORT</span></div>
+          <div class="sidebar-pad">
+            <p class="side-help">Load any public GitHub repository directly into the workspace.</p>
+            <label class="field-label">Repository URL or <code>owner/repo</code></label>
+            <input id="sideGithubUrl" class="vs-input" type="url" placeholder="https://github.com/owner/repo">
+            <label class="field-label">Branch (optional)</label>
+            <input id="sideGithubBranch" class="vs-input" type="text" placeholder="main">
+            <label class="field-label">Subfolder (optional)</label>
+            <input id="sideGithubSubpath" class="vs-input" type="text" placeholder="src">
+            <button id="sideGithubFetchBtn" class="vs-btn primary full" type="button">Fetch Repository</button>
+            <div id="sideGithubStatus" class="side-status"></div>
+          </div>
+        </div>
+
+        <!-- View: AI Tools & Auto-Improve/Fix -->
+        <div id="sideview-ai-tools" class="sideview hidden">
+          <div class="sidebar-header"><span>AI CODE STUDIO</span></div>
+          <div class="sidebar-pad">
+            <p class="side-help">Run targeted AI transformations on the active editor file.</p>
+            <div class="ai-tool-grid">
+              <button class="vs-btn" type="button" data-ai-cmd="fix">✦ Auto-Fix Bugs</button>
+              <button class="vs-btn" type="button" data-ai-cmd="improve">⚡ Auto-Improve</button>
+              <button class="vs-btn" type="button" data-ai-cmd="analyze">🔍 Deep Analyze</button>
+              <button class="vs-btn" type="button" data-ai-cmd="optimize">🚀 Optimize Speed</button>
+              <button class="vs-btn" type="button" data-ai-cmd="security">🛡 Security Audit</button>
+              <button class="vs-btn" type="button" data-ai-cmd="tests">🧪 Generate Tests</button>
+            </div>
+            <label class="toggle-row">
+              <input id="autoHealCheckbox" type="checkbox">
+              <span>Auto-Fix on Runtime Error</span>
+            </label>
+            <div id="aiDiffBanner" class="diff-banner hidden">
+              <span>AI updated the file.</span>
+              <button id="revertAiBtn" class="vs-btn danger small" type="button">Undo AI Edit</button>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <div id="leftSash" class="sash vertical"></div>
+
+      <!-- 3. Center Editor + Bottom Terminal/Problems/AI Panel -->
+      <section class="center-column">
+        <!-- Tab Bar + Breadcrumbs -->
+        <div class="editor-header">
+          <div id="fileTabs" class="tabs-bar" role="tablist"></div>
+          <div class="editor-inline-actions">
+            <button id="tabFixBtn" class="mini-action" type="button" title="Auto-Fix Active File">✦ Fix</button>
+            <button id="tabImproveBtn" class="mini-action" type="button" title="Improve Active File">⚡ Improve</button>
+            <button id="tabRunBtn" class="mini-action run" type="button" title="Run File">▶ Run</button>
+          </div>
+        </div>
+        <div id="breadcrumbs" class="breadcrumbs">BugFalse Studio &rsaquo; Welcome</div>
+
+        <!-- Editor & Optional Live Web Preview Split -->
+        <div id="editorStage" class="editor-stage">
+          <div id="editorPane" class="editor-pane">
+            <div id="monaco" class="monaco"></div>
+
+            <!-- VS Code Welcome / Get Started Tab -->
+            <div id="welcomeScreen" class="welcome-screen">
+              <div class="welcome-inner">
+                <div class="welcome-header">
+                  <h1>BugFalse Studio</h1>
+                  <p>AI-Powered Code Editor, Debugger &amp; Repository Workspace</p>
+                </div>
+
+                <div class="welcome-grid">
+                  <div class="welcome-col">
+                    <h2>Start</h2>
+                    <button id="welNewFile" class="welcome-link" type="button">
+                      <span class="w-icon">+</span>
+                      <div><strong>New File…</strong><small>Create a Python, JS, HTML, or any code file</small></div>
+                    </button>
+                    <button id="welImportFiles" class="welcome-link" type="button">
+                      <span class="w-icon">↥</span>
+                      <div><strong>Import Local Files or Folder…</strong><small>Load existing source files from your device</small></div>
+                    </button>
+                    <button id="welGithubRepo" class="welcome-link highlight" type="button">
+                      <span class="w-icon">GH</span>
+                      <div><strong>Share / Import GitHub Repo Link…</strong><small>Fetch any public GitHub repository by URL</small></div>
+                    </button>
+                    <button id="welSampleCode" class="welcome-link" type="button">
+                      <span class="w-icon">▶</span>
+                      <div><strong>Open Sample Python Project</strong><small>Try live debugging, auto-fix &amp; AI terminal</small></div>
+                    </button>
+                  </div>
+
+                  <div class="welcome-col">
+                    <h2>Quick GitHub Clone</h2>
+                    <div class="welcome-card">
+                      <p>Paste a GitHub repository link to immediately load its codebase into the editor:</p>
+                      <div class="inline-repo-box">
+                        <input id="welGithubInput" class="vs-input" type="url" placeholder="https://github.com/owner/repository">
+                        <button id="welGithubGo" class="vs-btn primary" type="button">Load</button>
+                      </div>
+                      <div id="welGithubMsg" class="side-status"></div>
+                    </div>
+
+                    <h2 style="margin-top:16px">Shortcuts</h2>
+                    <ul class="shortcut-list">
+                      <li><span>Command Palette / Repo Import</span><kbd>Ctrl + K</kbd></li>
+                      <li><span>Run Active File</span><kbd>Ctrl + Enter</kbd></li>
+                      <li><span>Save File</span><kbd>Ctrl + S</kbd></li>
+                      <li><span>Toggle Terminal Panel</span><kbd>Ctrl + J</kbd></li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div id="webSash" class="sash vertical hidden"></div>
+
+          <div id="webPane" class="web-pane hidden">
+            <div class="preview-toolbar">
+              <button id="webRefreshBtn" type="button" title="Reload Preview">↻</button>
+              <span id="webAddress" class="preview-url">localhost:8000/index.html</span>
+              <div class="vp-group">
+                <button type="button" data-vp="desktop" class="active">Desktop</button>
+                <button type="button" data-vp="tablet">Tablet</button>
+                <button type="button" data-vp="mobile">Mobile</button>
+              </div>
+            </div>
+            <iframe id="previewFrame" title="Live Preview" sandbox="allow-scripts"></iframe>
+          </div>
+        </div>
+
+        <div id="bottomSash" class="sash horizontal"></div>
+
+        <!-- Bottom Panel: AI Terminal, Problems, Output, AI Diff/Review -->
+        <section id="bottomPanel" class="bottom-panel">
+          <div class="panel-header">
+            <div class="panel-tabs">
+              <button class="panel-tab active" data-bottom="terminal" type="button">AI TERMINAL</button>
+              <button class="panel-tab" data-bottom="problems" type="button">PROBLEMS <span id="problemBadge" class="count-pill">0</span></button>
+              <button class="panel-tab" data-bottom="output" type="button">OUTPUT</button>
+              <button class="panel-tab" data-bottom="review" type="button">AI REVIEW</button>
+            </div>
+            <div class="panel-controls">
+              <button id="clearBottomBtn" type="button" title="Clear">⌫</button>
+              <button id="closeBottomBtn" type="button" title="Hide Panel">×</button>
+            </div>
+          </div>
+
+          <!-- Tab 1: Interactive AI Terminal -->
+          <div id="bottom-terminal" class="bottom-view terminal-view">
+            <div id="terminalHistory" class="terminal-history">
+              <div class="term-line sys">BugFalse AI Terminal v6.2 — Type <code>/help</code>, <code>/fix</code>, <code>/improve</code>, <code>/run</code>, <code>/import owner/repo</code>, or ask any coding question about your open files.</div>
+            </div>
+            <form id="terminalForm" class="terminal-prompt">
+              <span class="prompt-label">bugfalse@ai:~$</span>
+              <input id="terminalInput" type="text" autocomplete="off" placeholder="Ask AI about your code, or run /fix, /improve, /run, /import https://github.com/...">
+              <button type="submit" class="vs-btn primary small">Send</button>
+            </form>
+          </div>
+
+          <!-- Tab 2: Problems -->
+          <div id="bottom-problems" class="bottom-view hidden">
+            <div id="problemsList" class="empty-msg">No problems have been detected in the workspace.</div>
+          </div>
+
+          <!-- Tab 3: Execution Output -->
+          <div id="bottom-output" class="bottom-view hidden">
+            <pre id="executionOutput" class="output-pre">Run a file (Ctrl+Enter) to see stdout, stderr, and exit codes here.</pre>
+          </div>
+
+          <!-- Tab 4: AI Review & Suggestions -->
+          <div id="bottom-review" class="bottom-view hidden">
+            <div id="aiReviewBody" class="review-body">Run Auto-Fix, Improve, or Analyze to inspect detailed AI findings and suggestions.</div>
+          </div>
+        </section>
+      </section>
+
+      <div id="rightSash" class="sash vertical"></div>
+
+      <!-- 4. Right Auxiliary AI Copilot / Chat Sidebar -->
+      <aside id="aiSidebar" class="ai-sidebar">
+        <div class="sidebar-header">
+          <span>AI COPILOT</span>
+          <div class="sidebar-actions">
+            <button id="clearChatBtn" type="button" title="Clear Chat">↺</button>
+          </div>
+        </div>
+        <div class="ai-quick-bar">
+          <button type="button" data-ai-cmd="fix">✦ Fix Bugs</button>
+          <button type="button" data-ai-cmd="improve">⚡ Improve</button>
+          <button type="button" data-ai-cmd="explain">💡 Explain</button>
+        </div>
+        <div id="copilotMessages" class="copilot-messages">
+          <div class="msg bot">Open or import a repository, then ask me to debug, refactor, explain, or write tests for your active file.</div>
+        </div>
+        <form id="copilotForm" class="copilot-input-box">
+          <textarea id="copilotInput" rows="2" placeholder="Ask AI Copilot (Enter to send, Shift+Enter for newline)…"></textarea>
+          <div class="copilot-foot">
+            <span id="copilotContext" class="ctx-label">No active file</span>
+            <button type="submit" class="vs-btn primary small">Ask</button>
+          </div>
+        </form>
+      </aside>
+    </div>
+
+    <!-- Bottom VS Code Status Bar -->
+    <footer class="statusbar">
+      <div class="status-left">
+        <span id="statusRemote" class="status-item remote"><span class="dot"></span> BugFalse Studio</span>
+        <span id="statusBranch" class="status-item">⎇ local</span>
+        <span id="statusProblems" class="status-item">⊗ 0</span>
+        <span id="statusState" class="status-item">Ready</span>
+      </div>
+      <div class="status-right">
+        <span id="statusCursor" class="status-item">Ln 1, Col 1</span>
+        <span id="statusLang" class="status-item">Plain Text</span>
+        <span class="status-item">UTF-8</span>
+      </div>
+    </footer>
+  </div>
+
+  <!-- Command Palette / GitHub Import Modal -->
+  <div id="commandModal" class="modal hidden" role="dialog" aria-modal="true">
+    <div class="modal-box command-box">
+      <input id="paletteInput" class="palette-input" type="text" placeholder="Type a command or paste a GitHub repo URL (https://github.com/owner/repo)…">
+      <div id="paletteList" class="palette-list"></div>
+    </div>
+  </div>
+
+  <!-- New File Modal -->
+  <div id="newFileModal" class="modal hidden" role="dialog" aria-modal="true">
+    <div class="modal-box">
+      <div class="modal-head"><strong>Create New File</strong><button type="button" data-close="newFileModal">×</button></div>
+      <input id="newFileName" class="vs-input" type="text" value="main.py" placeholder="e.g. app.py, index.html, utils.js">
+      <button id="confirmNewFile" class="vs-btn primary full" style="margin-top:10px" type="button">Create</button>
+    </div>
+  </div>
+
+  <!-- Rename Modal -->
+  <div id="renameModal" class="modal hidden" role="dialog" aria-modal="true">
+    <div class="modal-box">
+      <div class="modal-head"><strong>Rename File</strong><button type="button" data-close="renameModal">×</button></div>
+      <input id="renameInput" class="vs-input" type="text">
+      <button id="confirmRename" class="vs-btn primary full" style="margin-top:10px" type="button">Rename</button>
+    </div>
+  </div>
+
+  <!-- Settings Modal -->
+  <div id="settingsModal" class="modal hidden" role="dialog" aria-modal="true">
+    <div class="modal-box">
+      <div class="modal-head"><strong>Studio Settings</strong><button type="button" data-close="settingsModal">×</button></div>
+      <label class="field-label">Groq API Key (optional browser override)</label>
+      <input id="settingsGroqKey" class="vs-input" type="password" placeholder="gsk_…">
+      <label class="toggle-row"><input id="settingsLive" type="checkbox" checked><span>Live Web Preview &amp; Auto-Diagnostics</span></label>
+      <label class="toggle-row"><input id="settingsAutoHeal" type="checkbox"><span>Auto-Fix on Runtime Execution Error</span></label>
+      <label class="toggle-row"><input id="settingsMinimap" type="checkbox" checked><span>Show Editor Minimap</span></label>
+      <button type="button" data-close="settingsModal" class="vs-btn primary full" style="margin-top:12px">Done</button>
+    </div>
+  </div>
+
+  <input id="fileInput" type="file" multiple hidden>
+  <input id="folderInput" type="file" webkitdirectory directory multiple hidden>
+</body>
+</html>
