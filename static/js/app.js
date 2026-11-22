@@ -162,10 +162,8 @@ print(calculate_total([]))
       const htmlFile = [...state.files.values()].find((x) => x.language === 'html');
       html = htmlFile ? htmlFile.content : `<pre>${esc(active.content)}</pre>`;
     }
-    const css = [...state.files.values()].filter((x) => x.language === 'css').map((x) => `<style>${x.content}</style>`).join('
-');
-    const js = [...state.files.values()].filter((x) => x.language === 'javascript').map((x) => `<script>${x.content.replace(/<\/script/gi, '<\/script')}</script>`).join('
-');
+  const css = [...state.files.values()].filter((x) => x.language === 'css').map((x) => `<style>${x.content}</style>`).join('\n');
+    const js = [...state.files.values()].filter((x) => x.language === 'javascript').map((x) => `<script>${x.content.replace(/<\/script/gi, '<\\/script')}</script>`).join('\n');
     html = /<\/head>/i.test(html) ? html.replace(/<\/head>/i, `${css}</head>`) : `${css}${html}`;
     html = /<\/body>/i.test(html) ? html.replace(/<\/body>/i, `${js}</body>`) : `${html}${js}`;
     $('previewFrame').srcdoc = html;
