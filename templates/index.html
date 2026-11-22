@@ -4,10 +4,10 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>BugFalse — AI Code Workspace</title>
-  <link rel="stylesheet" href="/static/css/styles.css">
+  <link rel="stylesheet" href="/static/css/styles.css?v={{ asset_v | default('6.4.0') }}">
   <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs/loader.js" defer></script>
-  <script src="/static/js/app.js" defer></script>
+  <script src="/static/js/app.js?v={{ asset_v | default('6.4.0') }}" defer></script>
 </head>
 <body>
   <div id="workspace" class="workspace">
@@ -29,22 +29,22 @@
       <div class="nav-right">
         <span id="aiAvailabilityBadge" class="ai-status-pill checking" title="AI Provider Availability">
           <i class="status-dot"></i>
-          <span id="aiAvailabilityText">Checking AI…</span>
+          <span id="aiAvailabilityText">Checking AI...</span>
         </span>
       </div>
     </header>
 
     <!-- Dropdown: File -->
     <div id="fileMenu" class="menu-dropdown hidden" role="menu">
-      <button type="button" data-cmd="new-file">New File…</button>
+      <button type="button" data-cmd="new-file">New File...</button>
       <button type="button" data-cmd="load-sample">Load Sample (main.py)</button>
       <div class="menu-sep"></div>
-      <button type="button" data-cmd="open-files">Import Local Files…</button>
-      <button type="button" data-cmd="open-folder">Import Local Folder…</button>
-      <button type="button" data-cmd="github-import">Share / Import GitHub Repo Link…</button>
+      <button type="button" data-cmd="open-files">Import Local Files...</button>
+      <button type="button" data-cmd="open-folder">Import Local Folder...</button>
+      <button type="button" data-cmd="github-import">Share / Import GitHub Repo Link...</button>
       <div class="menu-sep"></div>
       <button type="button" data-cmd="save-file">Save File (Ctrl+S)</button>
-      <button type="button" data-cmd="rename-file">Rename File…</button>
+      <button type="button" data-cmd="rename-file">Rename File...</button>
       <button type="button" data-cmd="download-zip">Download Workspace ZIP</button>
       <div class="menu-sep"></div>
       <button type="button" data-cmd="close-file" class="danger">Close File</button>
@@ -70,7 +70,7 @@
     <div id="aiMenu" class="menu-dropdown hidden" role="menu">
       <button type="button" data-ai="fix">Fix</button>
       <button type="button" data-ai="improve">Improve</button>
-      <button type="button" data-ai="update">Update…</button>
+      <button type="button" data-ai="update">Update...</button>
       <div class="menu-sep"></div>
       <button type="button" data-cmd="open-terminal">Terminal</button>
       <button type="button" data-cmd="open-settings">Settings</button>
@@ -151,7 +151,7 @@
 
           <form id="terminalForm" class="terminal-input-row">
             <span class="prompt-arrow">›</span>
-            <input id="terminalInput" type="text" autocomplete="off" placeholder="Type / for commands, paste a GitHub repo URL, or ask AI…">
+            <input id="terminalInput" type="text" autocomplete="off" placeholder="Type / for commands, paste a GitHub repo URL, or ask AI...">
             <button type="submit" class="btn primary small">Run</button>
           </form>
         </section>
@@ -194,7 +194,7 @@
       </div>
       <label class="field">
         <span>Describe what you want AI to update in the active file</span>
-        <textarea id="updateInstructionInput" rows="3" placeholder="e.g. Add input validation, convert to async, or fix edge cases…"></textarea>
+        <textarea id="updateInstructionInput" rows="3" placeholder="e.g. Add input validation, convert to async, or fix edge cases..."></textarea>
       </label>
       <button id="confirmUpdateBtn" class="btn primary full" type="button">Apply AI Update</button>
     </div>
@@ -225,7 +225,7 @@
       </label>
       <label class="field" style="margin-top:10px">
         <span>Groq API Key (optional browser override)</span>
-        <input id="groqKeyInput" type="password" placeholder="gsk_…">
+        <input id="groqKeyInput" type="password" placeholder="gsk_...">
       </label>
       <button type="button" data-close="settingsModal" class="btn primary full" style="margin-top:12px">Done</button>
     </div>

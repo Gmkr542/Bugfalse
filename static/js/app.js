@@ -82,6 +82,7 @@ print(calculate_total([]))
   async function refreshAiAvailability() {
     const badge = $('aiAvailabilityBadge');
     const label = $('aiAvailabilityText');
+    if (!badge || !label) return;
     const userKey = (localStorage.getItem('bf-groq-key') || '').trim();
 
     if (userKey) {
@@ -91,12 +92,16 @@ print(calculate_total([]))
       return;
     }
 
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 5000);
     try {
-      const res = await fetch('/ready');
+      const res = await fetch('/ready', { signal: ctrl.signal, cache: 'no-store' });
       const data = await res.json().catch(() => ({}));
       state.aiAvailable = Boolean(res.ok && data.ai_configured);
     } catch {
       state.aiAvailable = false;
+    } finally {
+      clearTimeout(timer);
     }
 
     if (state.aiAvailable) {
@@ -250,9 +255,9 @@ print(calculate_total([]))
     }
 
     showTerminal();
-    logTerminal(`Fetching GitHub repository: ${cleaned}…`, 'sys');
+    logTerminal(`Fetching GitHub repository: ${cleaned}...`, 'sys');
     if (modalStatus) {
-      modalStatus.textContent = 'Fetching repository files…';
+      modalStatus.textContent = 'Fetching repository files...';
       modalStatus.className = 'modal-msg';
     }
 
@@ -302,7 +307,7 @@ print(calculate_total([]))
     syncEditor();
     const beforeCode = f.content;
     state.busyAi = true;
-    $('terminalSubStatus').textContent = `AI running (${mode})…`;
+    $('terminalSubStatus').textContent = `AI running (${mode})...`;
     logTerminal(`> AI ${mode}${instruction ? `: ${instruction}` : ''} [${f.name}]`, 'user');
 
     try {
@@ -393,7 +398,7 @@ ${data.analysis || ''}`, 'ai');
       logTerminal(`Finished (exit code ${data.exit_code}, ${data.duration_ms ?? 0} ms)`, data.ok ? 'ai' : 'err');
 
       if (!data.ok && state.autoFix) {
-        logTerminal('Auto-Fix is ON — sending runtime error to AI…', 'ai');
+        logTerminal('Auto-Fix is ON — sending runtime error to AI...', 'ai');
         await runAiAction('fix', `Fix this execution error:
 ${data.stderr || ''}`);
       }
@@ -466,39 +471,78 @@ ${data.stderr || ''}`);
     }
   }
 
-  function initMonaco() {
-    require.config({ paths: { vs: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs' } });
-    require(['vs/editor/editor.main'], () => {
-      state.monaco = monaco;
-      state.editor = monaco.editor.create($('monaco'), {
-        value: '',
-        language: 'plaintext',
-        theme: state.theme === 'light' ? 'vs' : 'vs-dark',
-        automaticLayout: true,
-        fontSize: 14,
-        lineHeight: 22,
-        fontFamily: 'JetBrains Mono, SFMono-Regular, Consolas, monospace',
-        minimap: { enabled: state.minimap },
-        scrollBeyondLastLine: false,
-        smoothScrolling: true,
-        tabSize: 4,
-      });
-
-      state.editor.onDidChangeModelContent(() => {
-        if (state.suppressChange || !state.active) return;
-        syncEditor();
-        scheduleAutoFetchContext();
-        if (state.livePreview && isWebWorkspace()) {
-          clearTimeout(state.previewTimer);
-          state.previewTimer = setTimeout(refreshPreview, 400);
-        }
-      });
+  function createFallbackEditor() {
+    const host = $('monaco');
+    if (!host || host.querySelector('textarea')) return;
+    const ta = document.createElement('textarea');
+    ta.spellcheck = false;
+    ta.style.cssText = 'width:100%;height:100%;border:0;outline:none;resize:none;padding:16px;background:var(--bg);color:var(--text);font:14px/1.6 var(--mono);tab-size:4;';
+    host.appendChild(ta);
+    state.editor = {
+      getValue: () => ta.value,
+      setValue: (v) => { ta.value = String(v ?? ''); },
+      focus: () => ta.focus(),
+      layout: () => {},
+      getModel: () => null,
+      updateOptions: () => {},
+    };
+    ta.addEventListener('input', () => {
+      if (state.suppressChange || !state.active) return;
+      syncEditor();
+      scheduleAutoFetchContext();
+      if (state.livePreview && isWebWorkspace()) {
+        clearTimeout(state.previewTimer);
+        state.previewTimer = setTimeout(refreshPreview, 400);
+      }
     });
+  }
+
+  function initMonaco(retries = 20) {
+    if (typeof window.require !== 'function') {
+      if (retries > 0) {
+        setTimeout(() => initMonaco(retries - 1), 150);
+      } else {
+        createFallbackEditor();
+      }
+      return;
+    }
+    try {
+      window.require.config({ paths: { vs: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs' } });
+      window.require(['vs/editor/editor.main'], () => {
+        state.monaco = window.monaco;
+        const activeBeforeLoad = current();
+        $('monaco').innerHTML = '';
+        state.editor = window.monaco.editor.create($('monaco'), {
+          value: activeBeforeLoad ? activeBeforeLoad.content : '',
+          language: activeBeforeLoad ? activeBeforeLoad.language : 'plaintext',
+          theme: state.theme === 'light' ? 'vs' : 'vs-dark',
+          automaticLayout: true,
+          fontSize: 14,
+          lineHeight: 22,
+          fontFamily: 'JetBrains Mono, SFMono-Regular, Consolas, monospace',
+          minimap: { enabled: state.minimap },
+          scrollBeyondLastLine: false,
+          smoothScrolling: true,
+          tabSize: 4,
+        });
+
+        state.editor.onDidChangeModelContent(() => {
+          if (state.suppressChange || !state.active) return;
+          syncEditor();
+          scheduleAutoFetchContext();
+          if (state.livePreview && isWebWorkspace()) {
+            clearTimeout(state.previewTimer);
+            state.previewTimer = setTimeout(refreshPreview, 400);
+          }
+        });
+      }, () => createFallbackEditor());
+    } catch {
+      createFallbackEditor();
+    }
   }
 
   function init() {
     document.body.classList.toggle('light', state.theme === 'light');
-    initMonaco();
     refreshAiAvailability();
 
     // Top Nav Dropdowns (File, View, Run, AI)
@@ -739,5 +783,10 @@ ${data.stderr || ''}`);
     });
   }
 
-  bindEvents();
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => { init(); initMonaco(); });
+  } else {
+    init();
+    initMonaco();
+  }
 })();

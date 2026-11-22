@@ -28,7 +28,7 @@ templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 app = FastAPI(
     title="BugFalse",
     description="Full-screen AI coding workspace with GitHub import, AI terminal, and auto-fix.",
-    version="6.3.0",
+    version="6.4.0",
     docs_url="/docs" if os.getenv("ENABLE_API_DOCS", "true").lower() == "true" else None,
     redoc_url=None,
 )
@@ -72,7 +72,11 @@ async def security_and_request_middleware(request: Request, call_next):
 
 @app.get("/", response_class=HTMLResponse, include_in_schema=False)
 async def home(request: Request):
-    return templates.TemplateResponse(request=request, name="index.html")
+    return templates.TemplateResponse(
+        request=request,
+        name="index.html",
+        context={"asset_v": app.version},
+    )
 
 
 @app.get("/health")
